@@ -1,0 +1,18 @@
+{
+    "View604": [
+        {
+            "name": "Camera 1",
+            "location": "living room",
+            "floor": 6,
+            "video_type": "rtsp",
+            "video_link": "rtsp://test:WeaponWatch1@192.168.1.248:554/",
+
+            "detected": false,
+            "confirmed": false
+        }
+    ],
+    
+    "IDEA_factory": [
+
+    ]
+}
