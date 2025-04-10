@@ -1,18 +1,32 @@
 {
-    "View604": [
+    "IDEA factory": {
+        "num floors": 3,
+
+        "floor 1": [
         {
             "name": "Camera 1",
-            "location": "living room",
-            "floor": 6,
-            "video_type": "rtsp",
-            "video_link": "rtsp://test:WeaponWatch1@192.168.1.248:554/",
+            "location": "NA",
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.177:554/profile2/media.smp",
+
+            "detected": false,
+            "confirmed": false
+        },
+        {
+            "name": "Camera 2",
+            "location": "NA",
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.232:554/profile2/media.smp",
 
             "detected": false,
             "confirmed": false
         }
-    ],
-    
-    "IDEA_factory": [
+        ],
 
-    ]
+        "floor 2": [
+        ],
+        
+        "floor 3": [
+        ]
+    }
 }

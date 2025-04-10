@@ -29,16 +29,16 @@ class RTSPStream:
         self.capture.release()
 
 
-if __name__ == '__main__':
-    rtsp_url = "rtsp://test:weapon_watch@104.222.20.6:554/Preview_01_main"  # Replace with your actual RTSP URL
-    rtsp_stream = RTSPStream(rtsp_url)
+# if __name__ == '__main__':
+#     rtsp_url = "rtsp://ww:weaponwatch1@192.168.1.177:554/profile2/media.smp"
+#     rtsp_stream = RTSPStream(rtsp_url)
 
-    while True:
-        frame = rtsp_stream.read()
-        if frame is not None:
-            cv2.imshow('RTSP Stream', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+#     while True:
+#         frame = rtsp_stream.read()
+#         if frame is not None:
+#             cv2.imshow('RTSP Stream', frame)
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break
 
-    rtsp_stream.stop()
-    cv2.destroyAllWindows()
+#     rtsp_stream.stop()
+#     cv2.destroyAllWindows()
