@@ -2,17 +2,12 @@ import numpy as np
 import tensorflow as tf
 import cv2
 import utils as utils
-import multiprocessing
 import json
 import time
 
-from confirm import confirm
-from record import record
-from stream import RTSPStream
-
 def detect(notify_q, record_q, rtsp_stream):
     print("LOADING MODEL...\n")
-    path = 'camera/detectionmodel'
+    path = 'detectionmodel'
     detect_weapon = tf.saved_model.load(path)
     print("\nMODEL LOADED\n")
 
@@ -91,40 +86,3 @@ def detect(notify_q, record_q, rtsp_stream):
             print("Warning: Received an empty or invalid frame")
 
     cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    dic = {'detected': False,
-           'confirmed': False}
-    json_obj = json.dumps(dic, indent=4)
-    with open('status.json', 'w') as f:
-        f.write(json_obj)
-
-    with open('rtsps.txt', 'r') as file:
-        content = file.read()
-        rtsp_urls = content.split('\n')
-      
-    rtsp_streams = []
-    for rtsp_url in rtsp_urls:
-        rtsp_streams.append(RTSPStream(rtsp_url))
-        
-    confirm_q = multiprocessing.Queue()
-    record_q = multiprocessing.Queue()
-
-    confirm_p = multiprocessing.Process(target=confirm, args=(confirm_q,))
-    confirm_p.start()
-
-    record_p = multiprocessing.Process(target=record, args=(record_q,))
-    record_p.start()
-
-    detect(confirm_q, record_q, rtsp_stream)
-    rtsp_stream.stop()
-    cv2.destroyAllWindows()
-    
-    confirm_q.close()
-    record_q.close()
-
-    confirm_q.join_thread()
-    record_q.join_thread()
-
-    confirm_p.join()
-    record_p.join()  
