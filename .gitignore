@@ -157,3 +157,6 @@ google-services.json
 
 # Ignore detection model directory
 detectionmodel/
+
+tracking/videos
+tracking/results
