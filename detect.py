@@ -5,7 +5,7 @@ import utils as utils
 import json
 import time
 
-def detect(notify_q, record_q, rtsp_stream):
+def detect(rtsp_stream, camera_path):
     print("LOADING MODEL...\n")
     path = 'detectionmodel'
     detect_weapon = tf.saved_model.load(path)
@@ -13,26 +13,13 @@ def detect(notify_q, record_q, rtsp_stream):
 
     start_time = time.time()
     frame_count = 1
-    recording = False
     
     while True:
         frame = rtsp_stream.read()
         
         if frame is None:
-            record_q.put("finish")
             rtsp_stream.stop()
-            break
-
-        if recording:
-            record_q.put(frame)
-        else:
-            with open('status.json') as f:
-                data = json.load(f)
-
-            if data['confirmed'] == True:
-                record_q.put("start")
-                recording = True
-        
+            break        
 
         image_data = cv2.resize(frame, (608, 608))
         image_data = image_data / 255.
@@ -59,10 +46,10 @@ def detect(notify_q, record_q, rtsp_stream):
         valid_detections = valid_detections.numpy()[0]
 
         if valid_detections:
+            camera_path["detected"] = True
+            
             original_h, original_w, _ = frame.shape
             bboxes = utils.format_boxes(boxes.numpy()[0][:valid_detections], original_h, original_w)
-
-            notify_q.put(bboxes)
 
             pred_bbox = [bboxes, scores.numpy()[0], classes.numpy()[0], valid_detections]
 
@@ -72,15 +59,6 @@ def detect(notify_q, record_q, rtsp_stream):
             cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
             cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
             cv2.imshow('Footage', frame)
-            key = cv2.waitKey(1)
-            if key == ord('f'):
-                record_q.put('finish')
-                break
-            if key == ord('q'):
-                notify_q.put("stop")
-                record_q.put("stop")
-                break
-
             frame_count += 1
         else:
             print("Warning: Received an empty or invalid frame")
