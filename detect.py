@@ -47,6 +47,7 @@ def detect(rtsp_stream, camera_path):
 
         if valid_detections:
             camera_path["detected"] = True
+            print("gun detected")
             
             original_h, original_w, _ = frame.shape
             bboxes = utils.format_boxes(boxes.numpy()[0][:valid_detections], original_h, original_w)
@@ -59,6 +60,11 @@ def detect(rtsp_stream, camera_path):
             cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
             cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
             cv2.imshow('Footage', frame)
+            
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
+                            
             frame_count += 1
         else:
             print("Warning: Received an empty or invalid frame")
