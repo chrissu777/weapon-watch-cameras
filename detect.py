@@ -2,10 +2,9 @@ import numpy as np
 import tensorflow as tf
 import cv2
 import utils as utils
-import json
 import time
 
-def detect(rtsp_stream, camera_path):
+def detect(rtsp_stream, db, school, building, floor, cam_id):
     print("LOADING MODEL...\n")
     path = 'detectionmodel'
     detect_weapon = tf.saved_model.load(path)
@@ -46,9 +45,16 @@ def detect(rtsp_stream, camera_path):
         valid_detections = valid_detections.numpy()[0]
 
         if valid_detections:
-            camera_path["detected"] = True
-            print("gun detected")
-            
+            doc_ref = (
+                db.collection("schools")
+                .document(school)
+                .collection("cameras")
+                .document(building)
+                .collection(floor)
+                .document(cam_id)
+            )
+            doc_ref.update({"detected": True})
+                        
             original_h, original_w, _ = frame.shape
             bboxes = utils.format_boxes(boxes.numpy()[0][:valid_detections], original_h, original_w)
 
