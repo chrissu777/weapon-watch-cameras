@@ -33,6 +33,13 @@ global_db = []
 global_id_counter = 0
 db_lock = threading.Lock()
 
+# Homography matrices for each camera
+homographies = {
+    0: np.load("homography_cam0.npy"),  # Replace with actual homography matrix for camera 0
+    1: np.load("homography_cam1.npy"),  # Replace with actual homography matrix for camera 1
+    # Add more cameras as needed
+}
+
 def generate_new_global_id():
     global global_id_counter
     global_id_counter += 1
@@ -49,18 +56,36 @@ def get_embedding(image, box):
         feat = reid_model(img).cpu().numpy().flatten()
     return feat / np.linalg.norm(feat)
 
-def match_embedding(embedding, cam_id):
+def apply_homography(box, homography):
+    """Apply homography transformation to a bounding box."""
+    x1, y1, x2, y2 = box
+    points = np.array([[x1, y1, 1], [x2, y2, 1]]).T
+    transformed_points = homography @ points
+    transformed_points /= transformed_points[2]  # Normalize by the third coordinate
+    x1_t, y1_t = transformed_points[:2, 0]
+    x2_t, y2_t = transformed_points[:2, 1]
+    return [x1_t, y1_t, x2_t, y2_t]
+
+def match_embedding(embedding, global_coords):
     with db_lock:
         best_match = None
         max_sim = 0
         for entry in global_db:
-            if entry['cam_id'] == cam_id:
-                continue
             sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
             if sim > 0.7 and sim > max_sim:
                 max_sim = sim
                 best_match = entry['global_id']
-        return best_match if best_match else generate_new_global_id()
+        if best_match:
+            return best_match
+        else:
+            global_id = generate_new_global_id()
+            with db_lock:
+                global_db.append({
+                    'embedding': embedding,
+                    'global_coords': global_coords,
+                    'global_id': global_id
+                })
+            return global_id
 
 def process_camera(source, cam_id):
     print(f"Starting camera {cam_id}")
@@ -85,7 +110,6 @@ def process_camera(source, cam_id):
     
     while cap.isOpened():
         frame_count += 1
-        # print(f"Processing frame {frame_count} from camera {cam_id}")
         ret, frame = cap.read()
         if not ret:
             break
@@ -107,31 +131,22 @@ def process_camera(source, cam_id):
             x1, y1, x2, y2 = map(int, t.tlbr)
             track_id = t.track_id
 
+            # Apply homography to map to global coordinates
+            homography = homographies[cam_id]
+            global_coords = apply_homography((x1, y1, x2, y2), homography)
+
             if track_id not in local_to_global:
                 embedding = get_embedding(frame, (x1, y1, x2, y2))
                 if embedding is not None:
-                    global_id = match_embedding(embedding, cam_id)
+                    global_id = match_embedding(embedding, global_coords)
                     local_to_global[track_id] = global_id
-                    with db_lock:
-                        global_db.append({
-                            'embedding': embedding,
-                            'cam_id': cam_id,
-                            'global_id': global_id
-                        })
 
             global_id = local_to_global.get(track_id, -1)
             
-            # if global_id % 5 == 0:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
             cv2.putText(frame, f"GID: {global_id}", (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
 
-        # cv2.imshow(f"Camera {cam_id}", frame)
-        # if cv2.waitKey(1) & 0xFF == ord("q"):
-        #     break
-        
-
-        # Inside the while loop, after drawing on the frame:
         out.write(frame)
 
     cap.release()
@@ -139,10 +154,6 @@ def process_camera(source, cam_id):
 
 # Define camera sources
 camera_sources = [
-    # "./videos/Wildtrack/cam1.mp4",
-    # "./videos/Wildtrack/cam2.mp4",
-    # "./videos/Wildtrack/cam3.mp4",
-    # "./videos/Wildtrack/cam4.mp4"
     "./videos/angle1.mp4",
     "./videos/angle2.mp4",
 ]
