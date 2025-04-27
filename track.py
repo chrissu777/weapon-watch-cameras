@@ -9,6 +9,7 @@ from torchvision import transforms
 from PIL import Image
 import torchreid
 import torch
+from ultralytics import YOLO
 
 # Load ReID model (OSNet with IBN for better performance)
 reid_model = torchreid.models.build_model(
@@ -51,18 +52,26 @@ def get_embedding(image, box):
 def match_shooter(embedding):
     best_match = None
     max_sim = 0
+
+    # Iterate through the shooter database to find the best match
     for shooter in shooter_db:
         sim = cosine_similarity([embedding], [shooter['embedding']])[0][0]
         if sim > 0.7 and sim > max_sim:
             max_sim = sim
-            best_match = shooter['shooter_id']
+            best_match = shooter
+
     if best_match:
-        return best_match
+        # Update the moving average for the matched shooter
+        best_match['embedding'] = (best_match['embedding'] * best_match['count'] + embedding) / (best_match['count'] + 1)
+        best_match['count'] += 1
+        return best_match['shooter_id']
     else:
+        # Create a new shooter entry if no match is found
         shooter_id = generate_new_shooter_id()
         shooter_db.append({
-            'embedding': embedding,
-            'shooter_id': shooter_id
+            'embedding': embedding,  # Initialize with the current embedding
+            'shooter_id': shooter_id,
+            'count': 1  # Start the count for the moving average
         })
         return shooter_id
 
@@ -70,6 +79,8 @@ def detect(notify_q, record_q, rtsp_stream):
     print("LOADING MODEL...\n")
     path = 'detectionmodel'
     detect_weapon = tf.saved_model.load(path)
+
+    model = YOLO("yolov8n.pt")
     print("\nMODEL LOADED\n")
 
     start_time = time.time()
@@ -125,7 +136,7 @@ def detect(notify_q, record_q, rtsp_stream):
 
             # Find the person closest to the weapon
             weapon_boxes = [b for b, c in zip(bboxes, classes.numpy()[0]) if c == 1]  # Class 1 is "weapon"
-            person_boxes = [b for b, c in zip(bboxes, classes.numpy()[0]) if c == 0]  # Class 0 is "person"
+            person_boxes = model(frame, verbose=False)[0] # Class 0 is "person"
 
             if weapon_boxes and person_boxes:
                 weapon_box = weapon_boxes[0]  # Assuming one weapon
