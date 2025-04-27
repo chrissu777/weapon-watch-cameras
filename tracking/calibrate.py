@@ -6,16 +6,18 @@ import utilities
 
 
 def main(opts):
-    video1 = cv2.VideoCapture(opts.video1)
-    assert video1.isOpened(), f"Could not open video1 source {opts.video1}"
-    video2 = cv2.VideoCapture(opts.video2)
-    assert video2.isOpened(), f"Could not open video2 source {opts.video2}"
+    # video1 = cv2.VideoCapture(opts.video1)
+    # assert video1.isOpened(), f"Could not open video1 source {opts.video1}"
+    # video2 = cv2.VideoCapture(opts.video2)
+    # assert video2.isOpened(), f"Could not open video2 source {opts.video2}"
 
     # 1000 was choosen arbitrarily
-    feat_detector = cv2.SIFT_create(1000)
+    feat_detector = cv2.SIFT_create(nfeatures=1000, contrastThreshold=0.01, edgeThreshold=10, sigma=1.6, nOctaveLayers=3)
 
-    _, frame1 = video1.read()
-    _, frame2 = video2.read()
+    # _, frame1 = video1.read()
+    # _, frame2 = video2.read()
+    frame1 = cv2.imread(opts.video1)
+    frame2 = cv2.imread(opts.video2)
 
     kpts1, des1 = feat_detector.detectAndCompute(frame1, None)
     kpts2, des2 = feat_detector.detectAndCompute(frame2, None)
@@ -27,18 +29,17 @@ def main(opts):
 
     good = []
     for m, n in matches:
-        if m.distance < 0.75 * n.distance:
+        if m.distance < 0.7 * n.distance:
             good.append(m)
 
     src_pts = np.float32([kpts1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
     dst_pts = np.float32([kpts2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-    cam4_H_cam1, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+    homography, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
-    np.save(f"{opts.homography_pth}.npy", cam4_H_cam1)
+    np.save(f"{opts.homography_pth}.npy", homography)
 
-    src_pts = np.int0(src_pts).reshape(-1, 2)
-    dst_pts = np.int0(dst_pts).reshape(-1, 2)
-
+    src_pts = np.int32(src_pts).reshape(-1, 2)
+    dst_pts = np.int32(dst_pts).reshape(-1, 2)  
     img_with_matches = utilities.draw_matches(frame1, src_pts, frame2, dst_pts, good)
 
     assert cv2.imwrite("./img_with_matches.png", img_with_matches)
@@ -69,7 +70,7 @@ def main(opts):
         pred1 = anno.xyxy[0].cpu().numpy()[:, :4]
         pred2 = anno.xyxy[1].cpu().numpy()[:, :4]
 
-        pred2_ = utilities.apply_homography_xyxy(pred1, cam4_H_cam1)
+        pred2_ = utilities.apply_homography_xyxy(pred1, homography)
 
         utilities.draw_bounding_boxes(frame1, pred1)
         utilities.draw_bounding_boxes(frame2, pred2)
@@ -93,8 +94,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video1", type=str, help="Path to the video cam1.mp4.")
-    parser.add_argument("--video2", type=str, help="Path to the video cam4.mp4.")
+    parser.add_argument("--video1", type=str, help="Path to the video cam1.mp4.", default="./videos/cam1_1.png")
+    parser.add_argument("--video2", type=str, help="Path to the video cam4.mp4.", default="./videos/cam2_1.png")
     parser.add_argument(
         "--homography-pth",
         type=str,
