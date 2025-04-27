@@ -165,7 +165,17 @@ def detect(notify_q, record_q, rtsp_stream):
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(frame, f"Shooter ID: {shooter_id}", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
+            
+            # Draw bounding boxes around people that match the shooter embeddings
+            for person_box in person_boxes:
+                embedding = get_embedding(frame, person_box)
+                if embedding is not None:
+                    matched_shooter_id = match_shooter(embedding)
+                    if matched_shooter_id == current_shooter_id:
+                        x1, y1, x2, y2 = map(int, person_box)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                        cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
             notify_q.put(bboxes)
 
             pred_bbox = [bboxes, scores.numpy()[0], classes.numpy()[0], valid_detections]
