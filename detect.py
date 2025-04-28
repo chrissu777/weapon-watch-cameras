@@ -7,7 +7,7 @@ import time
 def detect(stream, db, cam_id, school):
     print("\nLOADING MODEL...")
     path = 'detectionmodel'
-    detect_weapon = tf.saved_model.load(path)
+    detection_model = tf.saved_model.load(path)
     print("MODEL LOADED\n")
     
     start_time = time.time()
@@ -24,7 +24,7 @@ def detect(stream, db, cam_id, school):
         image_data = image_data / 255.
         image_data = image_data[np.newaxis, ...].astype(np.float32)
 
-        infer_weapon = detect_weapon.signatures['serving_default']
+        infer_weapon = detection_model.signatures['serving_default']
 
         batch_data = tf.constant(image_data)
         pred_bbox = infer_weapon(batch_data)
