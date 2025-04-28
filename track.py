@@ -129,15 +129,28 @@ def track(stream, db, cam_id, school):
                         cam_ref.update({
                             "shooter detected": True
                         })
+                        x1, y1, x2, y2 = map(int, closest_person)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                        cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
         
         if len(embeddings) > 0: # check if any people match embeddings
-            for entry in embeddings:
-                embedding = entry['embedding']
-                id = entry['id']
-                sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
-                if sim > 0.7:
+            for person_box in person_boxes:
+                embedding = get_embedding(frame, person_box)
+                if embedding is not None:
+                    matched_shooter_id = match_embedding(embedding)
                     cam_name = cam_ref.get().to_dict().get("name", "Unknown")
                     print(f"Person {id} detected in camera {cam_name}")
                     cam_ref.update({
                         "shooter detected": True
                     })
+                    x1, y1, x2, y2 = map(int, person_box)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                    cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    
+        cv2.imshow("Frame", frame)
+        key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
