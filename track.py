@@ -89,6 +89,11 @@ def track(stream, db, cam_id, school):
         if frame is None:
             stream.stop()
             break  
+
+        # reset shooter detected flag
+        cam_ref.update({
+                        "shooter detected": False
+                    })
         if detected_id == cam_id: # weapon detected on this camera
             cam_ref = (
                 db.collection("schools")
@@ -124,14 +129,15 @@ def track(stream, db, cam_id, school):
                         cam_ref.update({
                             "shooter detected": True
                         })
-                        
+        
         if len(embeddings) > 0: # check if any people match embeddings
             for entry in embeddings:
                 embedding = entry['embedding']
                 id = entry['id']
                 sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
                 if sim > 0.7:
-                    print(f"Person {id} detected in camera {cam_id}")
+                    cam_name = cam_ref.get().to_dict().get("name", "Unknown")
+                    print(f"Person {id} detected in camera {cam_name}")
                     cam_ref.update({
                         "shooter detected": True
                     })
