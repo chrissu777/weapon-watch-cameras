@@ -1,4 +1,3 @@
-import json
 import multiprocessing
 
 from stream import RTSPStream
@@ -8,24 +7,25 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-def streamer(rtsp_url, db, school, building, floor, cam_id):
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+def streamer(rtsp_url, cam_id, school):
     stream = RTSPStream(rtsp_url)
-    process(stream, db, school, building, floor, cam_id)
+    process(stream, db, cam_id, school)
 
-if __name__ == '__main__':
-    cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
+if __name__ == '__main__':        
+    cams = db.collection('schools').document('UMD').collection('cameras').stream()
     
-    with open('camera_info.json') as f:
-        data = json.load(f)
-
     processes = []
-    for cam in data['IDEA factory']['floor 1']:
-        rtsp_url = cam['video link']
-        p = multiprocessing.Process(target=streamer, args=(rtsp_url, db, 'UMD', 'IDEA factory', 'floor 1', cam['name'],))
+    for cam in cams:
+        cam_id = cam.id
+        rtsp_url = cam.to_dict()['video link']
+        
+        p = multiprocessing.Process(target=streamer, args=(rtsp_url, cam_id, 'UMD',))
         processes.append(p)
         p.start()
-
+        
     for p in processes:
         p.join()

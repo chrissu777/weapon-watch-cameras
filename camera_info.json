@@ -1,9 +1,14 @@
 {
-    "IDEA factory": {
-        "floor 1": [
+        "cameras": [
         {
             "name": "Camera 1",
-            "location": "NA",
+            "building": "IDEA factory",
+            "floor": 1,
+            "coverage radius": 1,
+
+            "latitude": 38.9904276,
+            "longitude": -76.9381733,
+
             "video type": "rtsp",
             "video link": "rtsp://192.168.1.177:554/profile2/media.smp",
 
@@ -12,19 +17,18 @@
         },
         {
             "name": "Camera 2",
-            "location": "NA",
+            "building": "IDEA factory",
+            "floor": 1,
+            "coverage radius": 1,
+
+            "latitude": 38.9904276,
+            "longitude": -76.9381733,
+
             "video type": "rtsp",
             "video link": "rtsp://192.168.1.232:554/profile2/media.smp",
 
             "detected": false,
             "confirmed": false
         }
-        ],
-
-        "floor 2": [
-        ],
-        
-        "floor 3": [
         ]
-    }
 }

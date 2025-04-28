@@ -4,20 +4,20 @@ import cv2
 import utils as utils
 import time
 
-def detect(rtsp_stream, db, school, building, floor, cam_id):
-    print("LOADING MODEL...\n")
+def detect(stream, db, cam_id, school):
+    print("\nLOADING MODEL...")
     path = 'detectionmodel'
     detect_weapon = tf.saved_model.load(path)
-    print("\nMODEL LOADED\n")
-
+    print("MODEL LOADED\n")
+    
     start_time = time.time()
     frame_count = 1
     
     while True:
-        frame = rtsp_stream.read()
+        frame = stream.read()
         
         if frame is None:
-            rtsp_stream.stop()
+            stream.stop()
             break        
 
         image_data = cv2.resize(frame, (608, 608))
@@ -49,8 +49,6 @@ def detect(rtsp_stream, db, school, building, floor, cam_id):
                 db.collection("schools")
                 .document(school)
                 .collection("cameras")
-                .document(building)
-                .collection(floor)
                 .document(cam_id)
             )
             doc_ref.update({"detected": True})
