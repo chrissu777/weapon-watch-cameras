@@ -7,15 +7,20 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-
 def streamer(rtsp_url, cam_id, school):
     stream = RTSPStream(rtsp_url)
+    
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    
     process(stream, db, cam_id, school)
 
-if __name__ == '__main__':        
+if __name__ == '__main__':    
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
     
     processes = []
