@@ -38,7 +38,7 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, 
     valid_detections = valid_detections.numpy()[0]
 
     if valid_detections:
-        print("WEAPON DETECTED")
+        print(f"WEAPON DETECTED: CAM {cam_id}")
         
         image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         buffer = io.BytesIO()
@@ -102,5 +102,3 @@ def detect_worker(q_detect, cam_id, school):
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
         detect(frame, db, cam_id, school, detection_model, time.time(), 1, blob)
-                
-    cv2.destroyAllWindows()
