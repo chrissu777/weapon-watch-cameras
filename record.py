@@ -9,7 +9,6 @@ from firebase_admin import firestore
 ACTIVE = False
 
 def record_worker(q_record, cam_id, buffer_size=100):
-    # Firebase init:
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
@@ -27,12 +26,12 @@ def record_worker(q_record, cam_id, buffer_size=100):
     writer = None
 
     try:
+        print(f"CAM {cam_id} ACTIVE")
         while True:
             frame = q_record.get()
             buf.append(frame)
 
             if ACTIVE and writer is None:
-                # event just went live → open file, dump pre-buffer
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 h, w = frame.shape[:2]
                 writer = cv2.VideoWriter(f"{cam_id}.mp4", fourcc, 30.0, (w, h))
