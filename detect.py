@@ -3,12 +3,15 @@ import tensorflow as tf
 import cv2
 import utils as utils
 import time
+import io
+from PIL import Image
 
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+from firebase_admin import storage
 
-def detect(frame, db, cam_id, school, detection_model, start_time, frame_count):
+def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, blob):
     image_data = cv2.resize(frame, (608, 608))
     image_data = image_data / 255.
     image_data = image_data[np.newaxis, ...].astype(np.float32)
@@ -35,6 +38,13 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count):
 
     if valid_detections:
         print("WEAPON DETECTED")
+        
+        image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        buffer = io.BytesIO()
+        image_pil.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        blob.upload_from_file(buffer, content_type="image/jpeg")
         
         school_ref = (
             db.collection("schools")
@@ -74,8 +84,15 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count):
 def detect_worker(q_detect, cam_id, school):    
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
+
     db = firestore.client()
+    bucket = storage.bucket()
+    
+    firebase_storage_path = "frame_for_verifier.jpg"
+    blob = bucket.blob(firebase_storage_path)
 
     path = 'detectionmodel'
     detection_model = tf.saved_model.load(path)
@@ -83,6 +100,6 @@ def detect_worker(q_detect, cam_id, school):
     
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
-        detect(frame, db, cam_id, school, detection_model, time.time(), 1)
+        detect(frame, db, cam_id, school, detection_model, time.time(), 1, blob)
                 
     cv2.destroyAllWindows()
