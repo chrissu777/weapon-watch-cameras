@@ -82,6 +82,10 @@ def track(frame, db, cam_id, school):
                 .document(school)
             )
     while True:
+        active_event = school_ref.get().to_dict().get("active event", False)
+        if active_event:
+            print("Active event detected, skipping tracking.")
+            break
         detected_id = school_ref.get().to_dict().get("detected cam id", "")
         embeddings = school_ref.get().to_dict().get("embeddings", [])
 
@@ -138,6 +142,7 @@ def track(frame, db, cam_id, school):
 
         
         if len(embeddings) > 0: # check if any people match embeddings
+            person_boxes = model(frame, verbose=False)[0].boxes # Class 0 is "person"
             for person_box in person_boxes:
                 conf = float(person_box.conf.item())
                 cls = int(person_box.cls.item())
