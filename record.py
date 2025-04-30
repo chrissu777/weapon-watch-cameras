@@ -6,7 +6,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-from cloud import encrypt_upload
+# from cloud import encrypt_upload
 
 import time
 
