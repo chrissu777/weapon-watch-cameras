@@ -70,9 +70,9 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, 
         blob.upload_from_file(buffer, content_type="image/jpeg")
 
     if frame is not None and frame.size > 0:
-        cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
-        cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
-        cv2.imshow('Footage', frame)
+        # cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+        # cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
+        # cv2.imshow('Footage', frame)
         
         key = cv2.waitKey(1)
         if key == ord('q'):

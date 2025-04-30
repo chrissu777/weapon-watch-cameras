@@ -7,7 +7,28 @@ from record import record_worker
 from track import track_worker
 from stream import RTSPStream
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+ACTIVE_EVENT = False
+
 def frame_reader(rtsp_url, cam_id, q_detect, q_record, q_track):
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
+    db = firestore.client()
+    
+    def on_snapshot(docs, changes, ts):
+        global ACTIVE_EVENT
+        ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
+        print(f"ACTIVE EVENT IS: {ACTIVE_EVENT}")
+    
+    ref = db.collection('schools').document('UMD')
+    watch = ref.on_snapshot(on_snapshot)
+    
     stream = RTSPStream(rtsp_url)
     INVALID_FRAME_COUNT = 0
 
@@ -16,8 +37,11 @@ def frame_reader(rtsp_url, cam_id, q_detect, q_record, q_track):
         
         if frame is not None:
             q_detect.put(frame)
-            q_record.put(frame)
-            q_track.put(frame)
+            
+            if ACTIVE_EVENT:
+                q_record.put(frame)
+                q_track.put(frame)
+            
             INVALID_FRAME_COUNT = 0
         else:
             print("INVALID FRAME")
@@ -29,6 +53,7 @@ def frame_reader(rtsp_url, cam_id, q_detect, q_record, q_track):
 
     print(f"\nTOO MANY INVALID FRAMES: {cam_id} CAMERA STREAM ENDED\n")
     stream.stop()
+    watch.unsubscribe()
 
 def process(rtsp_url, cam_id, school):
     q_detect = Queue(maxsize=32)

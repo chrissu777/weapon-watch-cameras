@@ -156,11 +156,11 @@ def track(frame, db, cam_id, school):
                         cam_ref.update({
                             "shooter detected": True
                         })
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                        cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                        # cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                        # cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                        #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                     
-        cv2.imshow("Frame", frame)
+        # cv2.imshow("Frame", frame)
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
