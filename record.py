@@ -31,7 +31,6 @@ def record_worker(q_record, cam_id, buffer_size=100):
     save_file = f"University of Maryland-College Park*163286*{cam_id}."
 
     try:
-        print(f"CAM {cam_id} ACTIVE")
         while True:
             frame = q_record.get()
             buf.append(frame)

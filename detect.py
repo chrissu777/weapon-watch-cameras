@@ -40,13 +40,6 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, 
     if valid_detections:
         print(f"WEAPON DETECTED: CAM {cam_id}")
         
-        image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        buffer = io.BytesIO()
-        image_pil.save(buffer, format="JPEG")
-        buffer.seek(0)
-
-        blob.upload_from_file(buffer, content_type="image/jpeg")
-        
         school_ref = (
             db.collection("schools")
             .document(school)
@@ -68,6 +61,13 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, 
         pred_bbox = [bboxes, scores.numpy()[0], classes.numpy()[0], valid_detections]
 
         frame = utils.draw_bbox(frame, pred_bbox, info=False)
+        
+        image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        buffer = io.BytesIO()
+        image_pil.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        blob.upload_from_file(buffer, content_type="image/jpeg")
 
     if frame is not None and frame.size > 0:
         cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
