@@ -43,6 +43,7 @@ def record_worker(q_record, cam_id, buffer_size=100):
                 for f in buf:
                     writer.write(f)
                 buf.clear()
+                
                 formatted_time = datetime.now().strftime("%H:%M:%S")
                 print(f"RECORDING STARTED AT {formatted_time} FOR CAM {cam_id}")
 
@@ -53,8 +54,11 @@ def record_worker(q_record, cam_id, buffer_size=100):
                 writer.release()
                 writer = None
                 
-                formatted_time = datetime.now().strftime("%H:%M:%S")
                 encrypt_upload.encrypt_and_upload(save_file, save_file)
+                
+                ref.update({'detected cam id': ''})
+                
+                formatted_time = datetime.now().strftime("%H:%M:%S")
                 print(f"RECORDING SAVED AT {formatted_time} FOR CAM {cam_id}")
                 
     except KeyboardInterrupt:
