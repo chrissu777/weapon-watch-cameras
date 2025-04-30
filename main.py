@@ -11,10 +11,12 @@ if __name__ == '__main__':
     # Suppress logging warnings
     os.environ["GRPC_VERBOSITY"] = "ERROR"
     os.environ["GLOG_minloglevel"] = "2"
-     
+         
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
     db = firestore.client()
     
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
