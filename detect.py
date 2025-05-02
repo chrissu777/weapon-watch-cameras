@@ -12,7 +12,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from firebase_admin import storage
 
-def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, blob):
+def detect(frame, db, cam_id, cam_name, school, detection_model, start_time, frame_count, blob):
     image_data = cv2.resize(frame, (608, 608))
     image_data = image_data / 255.
     image_data = image_data[np.newaxis, ...].astype(np.float32)
@@ -38,7 +38,7 @@ def detect(frame, db, cam_id, school, detection_model, start_time, frame_count, 
     valid_detections = valid_detections.numpy()[0]
 
     if valid_detections:
-        print(f"WEAPON DETECTED: CAM {cam_id}")
+        print(f"WEAPON DETECTED: {cam_name}")
         
         school_ref = (
             db.collection("schools")
@@ -97,8 +97,13 @@ def detect_worker(q_detect, cam_id, school):
 
     path = 'detectionmodel'
     detection_model = tf.saved_model.load(path)
-    print(f"DETECTION MODEL LOADED FOR {cam_id}")
+    
+    cam_ref = db.collection('schools').document(school).collection('cameras').document(cam_id)
+    cam = cam_ref.get()
+    data = cam.to_dict()
+    cam_name = data['name']
+    print(f"DETECTION MODEL LOADED FOR {cam_name}")
     
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
-        detect(frame, db, cam_id, school, detection_model, time.time(), 1, blob)
+        detect(frame, db, cam_id, cam_name, school, detection_model, time.time(), 1, blob)
