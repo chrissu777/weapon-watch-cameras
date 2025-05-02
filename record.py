@@ -12,7 +12,7 @@ import time
 
 ACTIVE = False
 
-def record_worker(q_record, cam_id, buffer_size=100):
+def record_worker(q_record, cam_id, cam_name, buffer_size=100):
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
@@ -45,7 +45,7 @@ def record_worker(q_record, cam_id, buffer_size=100):
                 buf.clear()
                 
                 formatted_time = datetime.now().strftime("%H:%M:%S")
-                print(f"RECORDING STARTED AT {formatted_time} FOR CAM {cam_id}")
+                print(f"RECORDING STARTED AT {formatted_time} FOR {cam_name}")
 
             if ACTIVE and writer is not None:
                 writer.write(frame)
@@ -53,11 +53,11 @@ def record_worker(q_record, cam_id, buffer_size=100):
             if not ACTIVE and writer is not None:
                 writer.release()
                 writer = None
-                                
+
                 encrypt_upload.encrypt_and_upload(save_file, save_file)
                                 
                 formatted_time = datetime.now().strftime("%H:%M:%S")
-                print(f"RECORDING SAVED AT {formatted_time} FOR CAM {cam_id}")
+                print(f"RECORDING SAVED AT {formatted_time} FOR {cam_name}")
                 
     except KeyboardInterrupt:
         watch.unsubscribe()
