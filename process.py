@@ -13,7 +13,7 @@ from firebase_admin import firestore
 
 ACTIVE_EVENT = False
 
-def frame_reader(rtsp_url, cam_id, q_detect, q_record, q_track):
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track):
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred, {
@@ -51,18 +51,18 @@ def frame_reader(rtsp_url, cam_id, q_detect, q_record, q_track):
             if INVALID_FRAME_COUNT == 10:
                 break
 
-    print(f"\nTOO MANY INVALID FRAMES: {cam_id} CAMERA STREAM ENDED\n")
+    print(f"\nTOO MANY INVALID FRAMES: {cam_name} CAMERA STREAM ENDED\n")
     stream.stop()
     watch.unsubscribe()
 
-def process(rtsp_url, cam_id, school):
+def process(rtsp_url, cam_id, cam_name, school):
     q_detect = Queue(maxsize=32)
     q_record = Queue(maxsize=32)
     q_track = Queue(maxsize=32)
 
-    p_read = Process(target=frame_reader, args=(rtsp_url, cam_id, q_detect, q_record, q_track), name="reader")
-    p_detect = Process(target=detect_worker, args=(q_detect, cam_id, school), name="detector")
-    p_record = Process(target=record_worker, args=(q_record, cam_id), name="recorder")
+    p_read = Process(target=frame_reader, args=(rtsp_url, cam_name, q_detect, q_record, q_track), name="reader")
+    p_detect = Process(target=detect_worker, args=(q_detect, cam_id, cam_name, school), name="detector")
+    p_record = Process(target=record_worker, args=(q_record, cam_id, cam_name), name="recorder")
     p_track = Process(target=track_worker, args=(q_track, cam_id, school), name="tracker")
     
     p_read.start()

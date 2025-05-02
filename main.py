@@ -24,9 +24,10 @@ if __name__ == '__main__':
     processes = []
     for cam in cams:
         cam_id = cam.id
+        cam_name = cam.to_dict()['name']
         rtsp_url = cam.to_dict()['video link']
         
-        p = multiprocessing.Process(target=process, args=(rtsp_url, cam_id, 'UMD',))
+        p = multiprocessing.Process(target=process, args=(rtsp_url, cam_id, cam_name, 'UMD',))
         processes.append(p)
         p.start()
         
