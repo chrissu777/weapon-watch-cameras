@@ -53,10 +53,7 @@ def record_worker(q_record, cam_id, buffer_size=100):
             if not ACTIVE and writer is not None:
                 writer.release()
                 writer = None
-                
-                ref.update({'detected cam id': ''})
-                ref.update({'embeddings': ''})
-                
+                                
                 encrypt_upload.encrypt_and_upload(save_file, save_file)
                                 
                 formatted_time = datetime.now().strftime("%H:%M:%S")

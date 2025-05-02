@@ -176,7 +176,8 @@ def track_worker(q_track, cam_id, school):
                 # no active event, clear embeddings
                 print("No active event, clearing embeddings.")
                 school_ref.update({
-                    "embeddings": []
+                    "embeddings": [],
+                    'detected cam id': ''
                 })
 
     except KeyboardInterrupt:
