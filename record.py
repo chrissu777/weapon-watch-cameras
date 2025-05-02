@@ -28,7 +28,7 @@ def record_worker(q_record, cam_id, buffer_size=100):
 
     buf = deque(maxlen=buffer_size)
     writer = None
-    save_file = f"University of Maryland-College Park*163286*{cam_id}."
+    save_file = f"recordings/University of Maryland-College Park*163286*{cam_id}."
 
     try:
         while True:
@@ -38,7 +38,7 @@ def record_worker(q_record, cam_id, buffer_size=100):
             if ACTIVE and writer is None:
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 h, w = frame.shape[:2]
-                save_file += time.time() + ".mp4"
+                save_file += str(time.time()) + ".mp4"
                 writer = cv2.VideoWriter(save_file, fourcc, 30.0, (w, h))
                 for f in buf:
                     writer.write(f)
@@ -54,10 +54,11 @@ def record_worker(q_record, cam_id, buffer_size=100):
                 writer.release()
                 writer = None
                 
-                encrypt_upload.encrypt_and_upload(save_file, save_file)
-                
                 ref.update({'detected cam id': ''})
+                ref.update({'embeddings': ''})
                 
+                encrypt_upload.encrypt_and_upload(save_file, save_file)
+                                
                 formatted_time = datetime.now().strftime("%H:%M:%S")
                 print(f"RECORDING SAVED AT {formatted_time} FOR CAM {cam_id}")
                 

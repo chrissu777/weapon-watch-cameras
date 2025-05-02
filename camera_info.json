@@ -4,13 +4,9 @@
             "name": "Camera 1",
             "building": "IDEA factory",
             "floor": 1,
-            "coverage radius": 1,
-
-            "latitude": 38.9904276,
-            "longitude": -76.9381733,
 
             "video type": "rtsp",
-            "video link": "rtsp://192.168.1.177:554/profile2/media.smp",
+            "video link": "rtsp://192.168.1.111:554/profile2/media.smp",
 
             "detected": false,
             "confirmed": false
@@ -19,13 +15,53 @@
             "name": "Camera 2",
             "building": "IDEA factory",
             "floor": 1,
-            "coverage radius": 1,
-
-            "latitude": 38.9904276,
-            "longitude": -76.9381733,
 
             "video type": "rtsp",
-            "video link": "rtsp://192.168.1.232:554/profile2/media.smp",
+            "video link": "rtsp://192.168.1.121:554/profile2/media.smp",
+
+            "detected": false,
+            "confirmed": false
+        },
+        {
+            "name": "Camera 3",
+            "building": "IDEA factory",
+            "floor": 1,
+
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.131:554/profile2/media.smp",
+
+            "detected": false,
+            "confirmed": false
+        },
+        {
+            "name": "Camera 4",
+            "building": "IDEA factory",
+            "floor": 1,
+
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.114:554/profile2/media.smp",
+
+            "detected": false,
+            "confirmed": false
+        },
+        {
+            "name": "Camera 5",
+            "building": "IDEA factory",
+            "floor": 1,
+
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.151:554/profile2/media.smp",
+
+            "detected": false,
+            "confirmed": false
+        },
+        {
+            "name": "Camera 6",
+            "building": "IDEA factory",
+            "floor": 1,
+
+            "video type": "rtsp",
+            "video link": "rtsp://192.168.1.161:554/profile2/media.smp",
 
             "detected": false,
             "confirmed": false
