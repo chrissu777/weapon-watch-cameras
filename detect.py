@@ -12,7 +12,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from firebase_admin import storage
 
-def detect(frame, db, cam_id, cam_name, school, detection_model, blob):
+def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, buffer):
     image_data = cv2.resize(frame, (608, 608))
     image_data = image_data / 255.
     image_data = image_data[np.newaxis, ...].astype(np.float32)
@@ -39,18 +39,8 @@ def detect(frame, db, cam_id, cam_name, school, detection_model, blob):
 
     if valid_detections:
         print(f"WEAPON DETECTED: {cam_name}")
-        
-        school_ref = (
-            db.collection("schools")
-            .document(school)
-        )
+
         school_ref.update({"detected cam id": cam_id})
-        
-        cam_ref = (
-            school_ref
-            .collection("cameras")
-            .document(cam_id)
-        )
         cam_ref.update({"detected": True})
                     
         original_h, original_w, _ = frame.shape
@@ -63,7 +53,6 @@ def detect(frame, db, cam_id, cam_name, school, detection_model, blob):
         frame = utils.draw_bbox(frame, pred_bbox, info=False)
         
         image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        buffer = io.BytesIO()
         image_pil.save(buffer, format="JPEG")
         buffer.seek(0)
 
@@ -94,10 +83,23 @@ def detect_worker(q_detect, cam_id, cam_name, school):
     firebase_storage_path = "frame_for_verifier.jpg"
     blob = bucket.blob(firebase_storage_path)
 
+    school_ref = (
+        db.collection("schools")
+        .document(school)
+    )
+
+    cam_ref = (
+        school_ref
+        .collection("cameras")
+        .document(cam_id)
+    )
+
+    buffer = io.BytesIO()
+    
     path = 'detectionmodel'
     detection_model = tf.saved_model.load(path)
     print(f"DETECTION MODEL LOADED FOR {cam_name}")
     
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
-        detect(frame, db, cam_id, cam_name, school, detection_model, blob)
+        detect(frame, cam_id, cam_name, school, detection_model, blob, school_ref, cam_ref, buffer)
