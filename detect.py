@@ -103,4 +103,4 @@ def detect_worker(q_detect, cam_id, cam_name, school):
     
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
-        detect(frame, cam_id, cam_name, school, detection_model, blob, school_ref, cam_ref, buffer)
+        detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, buffer)
