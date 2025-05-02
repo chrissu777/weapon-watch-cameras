@@ -55,8 +55,9 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         image_pil.save(buffer, format="JPEG")
         buffer.seek(0)
-
+        
         blob.upload_from_file(buffer, content_type="image/jpeg")
+        print("DETECTED PHOTO UPLOADED TO FIREBASE")
 
     if frame is not None and frame.size > 0:
         # cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
