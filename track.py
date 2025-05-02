@@ -169,8 +169,15 @@ def track_worker(q_track, cam_id, school):
                                 #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             
                 # cv2.imshow("Frame", frame)
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    break
+                # key = cv2.waitKey(1)
+                # if key == ord('q'):
+                #     break
+            else:
+                # no active event, clear embeddings
+                print("No active event, clearing embeddings.")
+                school_ref.update({
+                    "embeddings": []
+                })
+
     except KeyboardInterrupt:
         watch.unsubscribe()
