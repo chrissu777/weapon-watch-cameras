@@ -1,12 +1,15 @@
 import cv2
-import time
 import io
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+
 import utils as utils
+
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials
+from firebase_admin import firestore
+from firebase_admin import storage
 
 def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, buffer):
     image_data = cv2.resize(frame, (608, 608))
@@ -28,7 +31,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         max_output_size_per_class=50,
         max_total_size=50,
         iou_threshold=0.5,
-        score_threshold=0.3
+        score_threshold=0.35
     )
     valid_detections = valid_detections.numpy()[0]
 
