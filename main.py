@@ -55,28 +55,25 @@ if __name__ == '__main__':
     # Fetch cameras
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
-    threads = []
-    i = 0
+    # threads = []
     for cam in cams:
         cam_id = cam.id
         data = cam.to_dict()
         cam_name = data.get('name', f'Cam-{cam_id}')
-        rtsp_url = data.get('video_link', '')
-        # if cam_name == "Camera 1":
-        t = threading.Thread(
-            target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', detection_model, yolo, reid_model, reid_transform),
-            name=f"{cam_name}-main-thread",
-            daemon=True
-        )
-        threads.append(t)
-        t.start()
-
-        i+=1
-
-        if i==3:
-            break
+        
+        video_link = 'cam1.mp4'
+        
+        # t = threading.Thread(
+        #     target=threaded_process,
+        #     args=(video_link, cam_id, video_link, 'UMD', detection_model, yolo, reid_model, reid_transform),
+        #     name=f"{cam_name}-main-thread",
+        #     daemon=True
+        # )
+        threaded_process(video_link, cam_id, video_link, 'UMD', detection_model, yolo, reid_model, reid_transform)
+        break
+    #     threads.append(t)
+    #     t.start()
         
 
-    for t in threads:
-        t.join()
+    # for t in threads:
+    #     t.join()

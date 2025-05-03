@@ -6,7 +6,7 @@ class RTSPStream:
         self.rtsp_url = rtsp_url
         self.frame = None
         self.running = True
-        self.capture = cv2.VideoCapture(self.rtsp_url)
+        self.capture = cv2.VideoCapture(f'footage/{self.rtsp_url}')
         self.thread = threading.Thread(target=self.update, args=())
         self.thread.daemon = True
         self.thread.start()
@@ -30,7 +30,7 @@ class RTSPStream:
 
 
 # if __name__ == '__main__':
-#     rtsp_url = "rtsp://ww:weaponwatch1@192.168.1.177:554/profile2/media.smp"
+#     rtsp_url = "guns.mp4"
 #     rtsp_stream = RTSPStream(rtsp_url)
 
 #     while True:
