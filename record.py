@@ -46,7 +46,7 @@ def record_worker(q_record, cam_id, cam_name, buffer_size=100):
                 save_file += str(datetime.now().strftime("%H:%M:%S")) + ".mp4"
                 s3_key += str(datetime.now().strftime("%H:%M:%S")) + ".mp4"
                 
-                writer = cv2.VideoWriter(save_file, fourcc, 60.0, (w, h))
+                writer = cv2.VideoWriter(save_file, fourcc, 5.0, (w, h))
                 for f in buf:
                     writer.write(f)
                 buf.clear()
