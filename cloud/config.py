@@ -1,8 +1,1 @@
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-S3_BUCKET = os.getenv('S3_BUCKET')
-KMS_KEY_ARN = os.getenv('KMS_KEY_ARN')
-AWS_REGION = os.getenv('AWS_REGION')
+KMS_KEY_ARN = 'arn:aws:kms:us-east-1:203918845922:key/f0e18996-d4a0-49f6-827d-cc8915c5f864'
