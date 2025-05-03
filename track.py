@@ -1,202 +1,184 @@
-import numpy as np
-import tensorflow as tf
 import cv2
-import utils as utils
-import json
-import time
-from sklearn.metrics.pairwise import cosine_similarity
-from torchvision import transforms
-from PIL import Image
-import torchreid
+import numpy as np
 import torch
+import torchreid
+
+from PIL import Image
+from torchvision import transforms
 from ultralytics import YOLO
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load ReID model (OSNet with IBN for better performance)
-reid_model = torchreid.models.build_model(
-    name='osnet_ibn_x1_0',
-    num_classes=1000,
-    loss='softmax',
-    pretrained=True
-)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-reid_model.to(device)
-reid_model.eval()
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
 
-# ReID image transform
-reid_transform = transforms.Compose([
-    transforms.Resize((256, 128)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+def track_worker(q_track, cam_id, school):
+    # Firebase init:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
 
-# Global shooter database
-shooter_db = []
-shooter_id_counter = 0
+    db = firestore.client()
 
-def generate_new_shooter_id():
-    global shooter_id_counter
-    shooter_id_counter += 1
-    return shooter_id_counter
+    # listen for the “Active Event” flag in Firestore:
+    def on_snapshot(docs, changes, ts):
+        global ACTIVE
+        ACTIVE = docs[0].to_dict().get('Active Event', False)
 
-def get_embedding(image, box):
-    x1, y1, x2, y2 = map(int, box)
-    crop = image[y1:y2, x1:x2]
-    if crop.size == 0 or x2 - x1 < 10 or y2 - y1 < 10:
-        return None
-    img = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-    img = reid_transform(Image.fromarray(img)).unsqueeze(0).to(device)
-    with torch.no_grad():
-        feat = reid_model(img).cpu().numpy().flatten()
-    return feat / np.linalg.norm(feat)
+    school_ref = db.collection('schools').document(school)
+    watch = school_ref.on_snapshot(on_snapshot)
 
-def match_shooter(embedding):
-    best_match = None
-    max_sim = 0
+    def get_embedding(image, box):
+        x1, y1, x2, y2 = map(int, box)
+        crop = image[y1:y2, x1:x2]
+        if crop.size == 0 or x2 - x1 < 10 or y2 - y1 < 10:
+            return None
+        img = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+        img = reid_transform(Image.fromarray(img)).unsqueeze(0).to(device)
+        with torch.no_grad():
+            feat = reid_model(img).cpu().numpy().flatten()
+        return feat / np.linalg.norm(feat)
+    
+    def match_embedding(embedding, create_new):
+        try:
+            best_match = None
+            max_sim = 0
+            for entry in embeddings:
+                sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
+                if sim > 0.7 and sim > max_sim:
+                    max_sim = sim
+                    best_match = entry['id']
+            if best_match:
+                entry = next(e for e in embeddings if e['id'] == best_match)
+                entry['embedding'] = (entry['embedding'] * entry['count'] + embedding) / (entry['count'] + 1)
+                entry['count'] += 1
+                return best_match
+            elif create_new:
+                # no match found, create a new embedding
+                print("New embedding detected, adding to database.")
+                
+                if len(embeddings) > 1000:
+                    embeddings.pop(0)
 
-    # Iterate through the shooter database to find the best match
-    for shooter in shooter_db:
-        sim = cosine_similarity([embedding], [shooter['embedding']])[0][0]
-        if sim > 0.7 and sim > max_sim:
-            max_sim = sim
-            best_match = shooter
-
-    if best_match:
-        # Update the moving average for the matched shooter
-        best_match['embedding'] = (best_match['embedding'] * best_match['count'] + embedding) / (best_match['count'] + 1)
-        best_match['count'] += 1
-        return best_match['shooter_id']
-    else:
-        # Create a new shooter entry if no match is found
-        shooter_id = generate_new_shooter_id()
-        shooter_db.append({
-            'embedding': embedding,  # Initialize with the current embedding
-            'shooter_id': shooter_id,
-            'count': 1  # Start the count for the moving average
-        })
-        return shooter_id
-
-def detect(notify_q, record_q, rtsp_stream):
-    print("LOADING MODEL...\n")
-    path = 'detectionmodel'
-    detect_weapon = tf.saved_model.load(path)
-
+                id = len(embeddings) + 1
+                school_ref.update({
+                    "embeddings": firestore.ArrayUnion([{
+                        'embedding': embedding.tolist(),
+                        'id': id,
+                        'count': 1
+                    }])
+                })
+                
+                return id
+        finally:
+            pass
     model = YOLO("yolov8n.pt")
-    print("\nMODEL LOADED\n")
+    # Load ReID model (OSNet with IBN for better performance)
+    reid_model = torchreid.models.build_model(
+        name='osnet_ibn_x1_0',  # Better-performing ReID model
+        num_classes=1000,
+        loss='softmax',
+        pretrained=True
+    )
+    device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+    reid_model.to(device)
+    reid_model.eval()
 
-    start_time = time.time()
-    frame_count = 1
-    recording = False
-    current_shooter_id = None
-
-    while True:
-        frame = rtsp_stream.read()
-        
-        if frame is None:
-            record_q.put("finish")
-            rtsp_stream.stop()
-            break
-
-        if recording:
-            record_q.put(frame)
-        else:
-            with open('status.json') as f:
-                data = json.load(f)
-
-            if data['confirmed'] == True:
-                record_q.put("start")
-                recording = True
-
-        image_data = cv2.resize(frame, (608, 608))
-        image_data = image_data / 255.
-        image_data = image_data[np.newaxis, ...].astype(np.float32)
-
-        infer_weapon = detect_weapon.signatures['serving_default']
-
-        batch_data = tf.constant(image_data)
-        pred_bbox = infer_weapon(batch_data)
-
-        for key, value in pred_bbox.items():
-            boxes = value[:, :, 0:4]
-            pred_conf = value[:, :, 4:]
-
-        boxes, scores, classes, valid_detections = tf.image.combined_non_max_suppression(
-            boxes=tf.reshape(boxes, (tf.shape(boxes)[0], -1, 1, 4)),
-            scores=tf.reshape(
-                pred_conf, (tf.shape(pred_conf)[0], -1, tf.shape(pred_conf)[-1])),
-            max_output_size_per_class=50,
-            max_total_size=50,
-            iou_threshold=0.5,
-            score_threshold=0.3
-        )
-        valid_detections = valid_detections.numpy()[0]
-
-        if valid_detections:
-            original_h, original_w, _ = frame.shape
-            bboxes = utils.format_boxes(boxes.numpy()[0][:valid_detections], original_h, original_w)
-
-            # Find the person closest to the weapon
-            weapon_boxes = [b for b, c in zip(bboxes, classes.numpy()[0]) if c == 1]  # Class 1 is "weapon"
-            person_boxes = model(frame, verbose=False)[0] # Class 0 is "person"
-
-            if weapon_boxes and person_boxes:
-                weapon_box = weapon_boxes[0]  # Assuming one weapon
-                weapon_center = [(weapon_box[0] + weapon_box[2]) / 2, (weapon_box[1] + weapon_box[3]) / 2]
-
-                # Find the closest person to the weapon
-                closest_person = None
-                min_distance = float('inf')
-                for person_box in person_boxes:
-                    person_center = [(person_box[0] + person_box[2]) / 2, (person_box[1] + person_box[3]) / 2]
-                    distance = np.linalg.norm(np.array(weapon_center) - np.array(person_center))
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_person = person_box
-
-                if closest_person is not None:
-                    embedding = get_embedding(frame, closest_person)
-                    if embedding is not None:
-                        shooter_id = match_shooter(embedding)
-                        if shooter_id != current_shooter_id:
-                            print(f"New shooter detected: ID {shooter_id}")
-                            current_shooter_id = shooter_id
-
-                        # Draw the closest person and weapon
-                        x1, y1, x2, y2 = map(int, closest_person)
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        cv2.putText(frame, f"Shooter ID: {shooter_id}", (x1, y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    # ReID image transform
+    reid_transform = transforms.Compose([
+        transforms.Resize((256, 128)),  # Standard input size for ReID models
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # Standard normalization
+    ])
+    
+    try:
+        while True:
+            frame = q_track.get()    # blocks until a frame arrives
             
-            # Draw bounding boxes around people that match the shooter embeddings
-            for person_box in person_boxes:
-                embedding = get_embedding(frame, person_box)
-                if embedding is not None:
-                    matched_shooter_id = match_shooter(embedding)
-                    if matched_shooter_id == current_shooter_id:
-                        x1, y1, x2, y2 = map(int, person_box)
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                        cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-            notify_q.put(bboxes)
+            if ACTIVE:
+                detected_id = school_ref.get().to_dict().get("detected cam id", "")
+                embeddings = school_ref.get().to_dict().get("embeddings", [])
 
-            pred_bbox = [bboxes, scores.numpy()[0], classes.numpy()[0], valid_detections]
+                cam_ref = (
+                    db.collection("schools")
+                    .document(school)
+                    .collection("cameras")
+                    .document(cam_id)
+                )
+                
+                # reset shooter_detected flag
+                cam_ref.update({
+                                "shooter_detected": False
+                            })
+                if detected_id == cam_id: # weapon detected on this camera
+                    minx, miny, maxx, maxy = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
+                    if minx == 0 and miny == 0 and maxx == 0 and maxy == 0:
+                        print("No bounding box found for camera.")
+                        continue
+                    else:
+                        person_boxes = model(frame, verbose=False)[0].boxes # Class 0 is "person"
+                        weapon_center = [(minx + maxx) / 2, (miny + maxy) / 2]
 
-            frame = utils.draw_bbox(frame, pred_bbox, info=False)
+                        # Find the closest person to the weapon
+                        closest_person = None
+                        min_distance = float('inf')
+                        
+                        for person_box in person_boxes:
+                            conf = float(person_box.conf.item())
+                            cls = int(person_box.cls.item())
+                            if cls == 0 and conf > 0.3:  # Class 0 is “person”
+                                x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())  # Convert to integers
+                                person_center = [(x1 + x2) / 2, (y1 + y2) / 2]
+                                distance = np.linalg.norm(np.array(weapon_center) - np.array(person_center))
+                                if distance < min_distance:
+                                    min_distance = distance
+                                    closest_person = (x1, y1, x2, y2)
 
-        if frame is not None and frame.size > 0:
-            cv2.putText(frame, "FPS: {:.3f}".format(frame_count / (time.time() - start_time)), (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
-            cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
-            cv2.imshow('Footage', frame)
-            key = cv2.waitKey(1)
-            if key == ord('f'):
-                record_q.put('finish')
-                break
-            if key == ord('q'):
-                notify_q.put("stop")
-                record_q.put("stop")
-                break
+                        if closest_person is not None:
+                            embedding = get_embedding(frame, closest_person)
+                            if embedding is not None:
+                                matched_shooter_id = match_embedding(embedding, True)
+                                print(f"Shooter detected with weapon: ID {matched_shooter_id}")
+                                cam_ref.update({
+                                    "shooter_detected": True
+                                })
+                                x1, y1, x2, y2 = map(int, closest_person)
+                                cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                                cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-            frame_count += 1
-        else:
-            print("Warning: Received an empty or invalid frame")
+                # If no weapon detected, check for people in the frame
+                elif len(embeddings) > 0:
+                    person_boxes = model(frame, verbose=False)[0].boxes # Class 0 is "person"
+                    for person_box in person_boxes:
+                        conf = float(person_box.conf.item())
+                        cls = int(person_box.cls.item())
+                        if cls == 0 and conf > 0.3:  # Class 0 is “person”
+                            x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())  # Convert to integers
+                            embedding = get_embedding(frame, (x1, y1, x2, y2))
+                            if embedding is not None:
+                                matched_shooter_id = match_embedding(embedding, False) # do not create new embedding if there's no match
+                                cam_name = cam_ref.get().to_dict().get("name", "Unknown")
+                                print(f"Person {matched_shooter_id} detected in camera {cam_name}")
+                                cam_ref.update({
+                                    "shooter_detected": True
+                                })
+                                # cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                                # cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
+                                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            
+                # cv2.imshow("Frame", frame)
+                # key = cv2.waitKey(1)
+                # if key == ord('q'):
+                #     break
+            else:
+                # no active event, clear embeddings
+                # print("No active event, clearing embeddings.")
+                school_ref.update({
+                    "embeddings": [],
+                    'detected cam id': ''
+                })
 
-    cv2.destroyAllWindows()
+    except KeyboardInterrupt:
+        watch.unsubscribe()

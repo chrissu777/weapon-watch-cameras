@@ -1,29 +1,76 @@
-import multiprocessing
-import cv2
+import time
+from multiprocessing import Process
+from multiprocessing import Queue
 
-from confirm import confirm
-from record import record
-from detect import detect
+from detect import detect_worker
+from record import record_worker
+from track import track_worker
+from stream import RTSPStream
 
-def process(rtsp_stream):
-    confirm_q = multiprocessing.Queue()
-    record_q = multiprocessing.Queue()
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
 
-    confirm_p = multiprocessing.Process(target=confirm, args=(confirm_q,))
-    confirm_p.start()
+ACTIVE_EVENT = False
 
-    record_p = multiprocessing.Process(target=record, args=(record_q,))
-    record_p.start()
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track):
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
+    db = firestore.client()
+    
+    def on_snapshot(docs, changes, ts):
+        global ACTIVE_EVENT
+        ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
+        print(f"ACTIVE EVENT IS: {ACTIVE_EVENT}")
+    
+    ref = db.collection('schools').document('UMD')
+    watch = ref.on_snapshot(on_snapshot)
+    
+    stream = RTSPStream(rtsp_url)
+    INVALID_FRAME_COUNT = 0
 
-    detect(confirm_q, record_q, rtsp_stream)
-    rtsp_stream.stop()
-    cv2.destroyAllWindows()
+    while True:
+        frame = stream.read()
+        
+        if frame is not None:
+            q_detect.put(frame)
+            q_record.put(frame)
+            
+            if ACTIVE_EVENT:
+                q_track.put(frame)
+            
+            INVALID_FRAME_COUNT = 0
+        else:
+            print("INVALID FRAME")
+            INVALID_FRAME_COUNT += 1
+            time.sleep(0.1)
+            
+            if INVALID_FRAME_COUNT == 10:
+                break
 
-    confirm_q.close()
-    record_q.close()
+    print(f"\nTOO MANY INVALID FRAMES: {cam_name} CAMERA STREAM ENDED\n")
+    stream.stop()
+    watch.unsubscribe()
 
-    confirm_q.join_thread()
-    record_q.join_thread()
+def process(rtsp_url, cam_id, cam_name, school):
+    q_detect = Queue(maxsize=32)
+    q_record = Queue(maxsize=32)
+    q_track = Queue(maxsize=32)
 
-    confirm_p.join()
-    record_p.join()  
+    p_read = Process(target=frame_reader, args=(rtsp_url, cam_name, q_detect, q_record, q_track), name="reader")
+    p_detect = Process(target=detect_worker, args=(q_detect, cam_id, cam_name, school), name="detector")
+    p_record = Process(target=record_worker, args=(q_record, cam_id, cam_name), name="recorder")
+    p_track = Process(target=track_worker, args=(q_track, cam_id, school), name="tracker")
+    
+    p_read.start()
+    p_detect.start()
+    p_record.start()
+    p_track.start()
+    
+    p_read.join()
+    p_detect.join()
+    p_record.join()
+    p_track.join()
