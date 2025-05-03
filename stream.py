@@ -11,13 +11,16 @@ class RTSPStream:
         self.thread.daemon = True
         self.thread.start()
 
-    def update(self):
+    def update(self):        
         while self.running:
             ret, frame = self.capture.read()
             if ret:
                 self.frame = frame
             else:
                 self.running = False
+                break
+            
+            if cv2.waitKey(25) & 0xFF == ord('q'):
                 break
 
     def read(self):
