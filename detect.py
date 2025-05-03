@@ -78,7 +78,7 @@ def detect_worker(q_detect, cam_id, cam_name, school, detection_model):
 
     db = firestore.client()
     bucket = storage.bucket()
-    blob = bucket.blob("frame_for_verifier.jpg")
+    blob = bucket.blob(f"frame_for_verifier*{cam_id}.jpg")
 
     school_ref = db.collection("schools").document(school)
     cam_ref = school_ref.collection("cameras").document(cam_id)
