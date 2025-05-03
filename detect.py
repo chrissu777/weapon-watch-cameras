@@ -42,7 +42,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
     if valid_detections:
         print(f"\nWEAPON DETECTED: {cam_name}")
 
-        school_ref.update({"detected cam id": cam_id})
+        school_ref.update({"detected_cam_id": cam_id})
         cam_ref.update({"detected": True})
                     
         original_h, original_w, _ = frame.shape
@@ -63,7 +63,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
 
     if frame is not None and frame.size > 0:
         cv2.namedWindow(cam_name, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(cam_name, 600, 400)
+        cv2.resizeWindow(cam_name, 800, 500)
         cv2.imshow(cam_name, frame)
         
         key = cv2.waitKey(1)
