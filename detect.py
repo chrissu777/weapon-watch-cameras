@@ -61,6 +61,9 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         
         blob.upload_from_file(buffer, content_type="image/jpeg")
         print("DETECTED PHOTO UPLOADED TO FIREBASE")
+    else:
+        cam_ref.update({"detected": False})
+        cam_ref.update({"bboxes": [0, 0, 0, 0]})
 
     if frame is not None and frame.size > 0:
         cv2.namedWindow(cam_name, cv2.WINDOW_NORMAL)
