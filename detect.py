@@ -33,12 +33,12 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         max_output_size_per_class=50,
         max_total_size=50,
         iou_threshold=0.5,
-        score_threshold=0.3
+        score_threshold=0.4
     )
     valid_detections = valid_detections.numpy()[0]
 
     if valid_detections:
-        print(f"WEAPON DETECTED: {cam_name}")
+        print(f"\nWEAPON DETECTED: {cam_name}")
 
         school_ref.update({"detected cam id": cam_id})
         cam_ref.update({"detected": True})
