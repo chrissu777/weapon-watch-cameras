@@ -107,9 +107,9 @@ def track_worker(q_track, cam_id, school):
                     .document(cam_id)
                 )
                 
-                # reset shooter detected flag
+                # reset shooter_detected flag
                 cam_ref.update({
-                                "shooter detected": False
+                                "shooter_detected": False
                             })
                 if detected_id == cam_id: # weapon detected on this camera
                     minx, miny, maxx, maxy = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
@@ -141,7 +141,7 @@ def track_worker(q_track, cam_id, school):
                                 matched_shooter_id = match_embedding(embedding, True)
                                 print(f"Shooter detected with weapon: ID {matched_shooter_id}")
                                 cam_ref.update({
-                                    "shooter detected": True
+                                    "shooter_detected": True
                                 })
                                 x1, y1, x2, y2 = map(int, closest_person)
                                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
@@ -162,7 +162,7 @@ def track_worker(q_track, cam_id, school):
                                 cam_name = cam_ref.get().to_dict().get("name", "Unknown")
                                 print(f"Person {matched_shooter_id} detected in camera {cam_name}")
                                 cam_ref.update({
-                                    "shooter detected": True
+                                    "shooter_detected": True
                                 })
                                 # cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
                                 # cv2.putText(frame, f"Matched ID: {matched_shooter_id}", (x1, y1 - 10),
@@ -174,7 +174,7 @@ def track_worker(q_track, cam_id, school):
                 #     break
             else:
                 # no active event, clear embeddings
-                print("No active event, clearing embeddings.")
+                # print("No active event, clearing embeddings.")
                 school_ref.update({
                     "embeddings": [],
                     'detected cam id': ''
