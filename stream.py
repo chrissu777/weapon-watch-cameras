@@ -7,6 +7,7 @@ class RTSPStream:
         self.frame = None
         self.running = True
         self.capture = cv2.VideoCapture(self.rtsp_url)
+        self.capture.set(cv2.CAP_PROP_POS_FRAMES, 3250)
         self.thread = threading.Thread(target=self.update, args=())
         self.thread.daemon = True
         self.thread.start()
