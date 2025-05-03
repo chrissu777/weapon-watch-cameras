@@ -20,7 +20,7 @@ class RTSPStream:
                 self.running = False
                 break
             
-            if cv2.waitKey(25) & 0xFF == ord('q'):
+            if cv2.waitKey(50) & 0xFF == ord('q'):
                 break
 
     def read(self):
