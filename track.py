@@ -101,10 +101,10 @@ def track_worker(q_track, cam_id, school):
                 embeddings = school_ref.get().to_dict().get("embeddings", [])
 
                 cam_ref = (
-                        db.collection("schools")
-                        .document(school)
-                        .collection("cameras")
-                        .document(cam_id)
+                    db.collection("schools")
+                    .document(school)
+                    .collection("cameras")
+                    .document(cam_id)
                 )
                 
                 # reset shooter detected flag
