@@ -31,5 +31,7 @@ if __name__ == '__main__':
         processes.append(p)
         p.start()
         
+        break
+        
     for p in processes:
         p.join()
