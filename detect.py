@@ -34,7 +34,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
     )
     valid_detections = valid_detections.numpy()[0]
 
-    if 1 in classes.numpy().tolist(): valid_detections = 0
+    if 1.0 in classes.numpy()[0].tolist(): valid_detections = 0
 
     if valid_detections:
         print(f"\nWEAPON DETECTED: {cam_name}")
