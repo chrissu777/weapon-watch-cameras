@@ -22,16 +22,18 @@ if __name__ == '__main__':
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
     
     processes = []
-    for cam in cams:
+    for i, cam in enumerate(cams):
         cam_id = cam.id
         cam_name = cam.to_dict()['name']
-        rtsp_url = cam.to_dict()['video link']
+        # rtsp_url = cam.to_dict()['video link']
+        video_link = f"footage/cam{cam_name[-1]}.mp4"
         
-        p = multiprocessing.Process(target=process, args=(rtsp_url, cam_id, cam_name, 'UMD',))
+        p = multiprocessing.Process(target=process, args=(video_link, cam_id, video_link, 'UMD',))
         processes.append(p)
         p.start()
         
-        break
+        if i == 2:
+            break
         
     for p in processes:
         p.join()
