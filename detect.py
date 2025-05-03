@@ -49,17 +49,19 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         blob.upload_from_file(buffer, content_type="image/jpeg")
         print("DETECTED PHOTO UPLOADED TO FIREBASE")
     else:
-        print(f"\nNO WEAPON DETECTED: {cam_name}")
+        # print(f"\nNO WEAPON DETECTED: {cam_name}")
         cam_ref.update({"detected": False})
         school_ref.update({"detected_cam_id": ""})
         cam_ref.update({"bboxes": [0, 0, 0, 0]})
-    # if frame is not None and frame.size > 0:
-    #     cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
-    #     cv2.imshow('Footage', frame)
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #         return False
-    # else:
-    #     print("Warning: Received an empty or invalid frame")
+    
+    if frame is not None and frame.size > 0:
+        # cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
+        # cv2.imshow('Footage', frame)
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     return False
+        cv2.imwrite(f"detected_frames/{cam_name}.jpg", frame)
+    else:
+        print("Warning: Received an empty or invalid frame")
 
     
 def detect_worker(q_detect, cam_id, cam_name, school, detection_model):

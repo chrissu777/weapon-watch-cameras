@@ -56,20 +56,21 @@ if __name__ == '__main__':
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
     threads = []
+    i = 0
     for cam in cams:
         cam_id = cam.id
         data = cam.to_dict()
         cam_name = data.get('name', f'Cam-{cam_id}')
         rtsp_url = data.get('video_link', '')
-        if cam_name == "Camera 1":
-            t = threading.Thread(
-                target=threaded_process,
-                args=(rtsp_url, cam_id, cam_name, 'UMD', detection_model, yolo, reid_model, reid_transform),
-                name=f"{cam_name}-main-thread",
-                daemon=True
-            )
-            threads.append(t)
-            t.start()
+        # if cam_name == "Camera 1":
+        t = threading.Thread(
+            target=threaded_process,
+            args=(rtsp_url, cam_id, cam_name, 'UMD', detection_model, yolo, reid_model, reid_transform),
+            name=f"{cam_name}-main-thread",
+            daemon=True
+        )
+        threads.append(t)
+        t.start()
         
 
     for t in threads:
