@@ -37,9 +37,9 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track):
         
         if frame is not None:
             q_detect.put(frame)
+            q_record.put(frame)
             
             if ACTIVE_EVENT:
-                q_record.put(frame)
                 q_track.put(frame)
             
             INVALID_FRAME_COUNT = 0
