@@ -37,6 +37,8 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
     )
     valid_detections = valid_detections.numpy()[0]
 
+    if 1.0 in classes.numpy()[0]: valid_detections = 0
+
     if valid_detections:
         print(f"\nWEAPON DETECTED: {cam_name}")
 
@@ -60,8 +62,9 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         print("DETECTED PHOTO UPLOADED TO FIREBASE")
 
     if frame is not None and frame.size > 0:
-        cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
-        cv2.imshow('Footage', frame)
+        cv2.namedWindow(cam_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(cam_name, 600, 400)
+        cv2.imshow(cam_name, frame)
         
         key = cv2.waitKey(1)
         if key == ord('q'):
@@ -80,7 +83,7 @@ def detect_worker(q_detect, cam_id, cam_name, school):
     db = firestore.client()
     bucket = storage.bucket()
     
-    firebase_storage_path = "frame_for_verifier.jpg"
+    firebase_storage_path = f"frame_for_verifier_{cam_id}.jpg"
     blob = bucket.blob(firebase_storage_path)
 
     school_ref = (
