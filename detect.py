@@ -59,6 +59,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         image_pil.save(buffer, format="JPEG")
         buffer.seek(0)
         
+        blob.delete()
         blob.upload_from_file(buffer, content_type="image/jpeg")
         print("DETECTED PHOTO UPLOADED TO FIREBASE")
     else:
