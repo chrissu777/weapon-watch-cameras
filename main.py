@@ -23,7 +23,7 @@ if __name__ == '__main__':
     
     processes = []
     for i, cam in enumerate(cams):
-        if i >= 3:
+        if i == 2 or i == 3:
             cam_id = cam.id
             cam_name = cam.to_dict()['name']
             # rtsp_url = cam.to_dict()['video link']

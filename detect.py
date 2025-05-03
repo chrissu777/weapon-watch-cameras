@@ -58,8 +58,10 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         image_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         image_pil.save(buffer, format="JPEG")
         buffer.seek(0)
-        
-        blob.delete()
+        try:
+            blob.delete()
+        except:
+            print("No previous blob to delete")
         blob.upload_from_file(buffer, content_type="image/jpeg")
         print("DETECTED PHOTO UPLOADED TO FIREBASE")
     else:
