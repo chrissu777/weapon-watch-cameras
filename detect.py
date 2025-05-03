@@ -44,6 +44,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
 
         school_ref.update({"detected_cam_id": cam_id})
         cam_ref.update({"detected": True})
+        cam_ref.update({'shooter_detected': True})
                     
         original_h, original_w, _ = frame.shape
         bboxes = utils.format_boxes(boxes.numpy()[0][:valid_detections], original_h, original_w)
