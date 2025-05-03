@@ -71,6 +71,11 @@ if __name__ == '__main__':
         )
         threads.append(t)
         t.start()
+
+        i+=1
+
+        if i==2:
+            break
         
 
     for t in threads:
