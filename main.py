@@ -23,17 +23,15 @@ if __name__ == '__main__':
     
     processes = []
     for i, cam in enumerate(cams):
-        cam_id = cam.id
-        cam_name = cam.to_dict()['name']
-        # rtsp_url = cam.to_dict()['video link']
-        video_link = f"footage/cam{cam_name[-1]}.mp4"
-        
-        p = multiprocessing.Process(target=process, args=(video_link, cam_id, video_link, 'UMD',))
-        processes.append(p)
-        p.start()
-        
-        if i == 2:
-            break
+        if i >= 3:
+            cam_id = cam.id
+            cam_name = cam.to_dict()['name']
+            # rtsp_url = cam.to_dict()['video link']
+            video_link = f"footage/cam{cam_name[-1]}.mp4"
+            
+            p = multiprocessing.Process(target=process, args=(video_link, cam_id, video_link, 'UMD',))
+            processes.append(p)
+            p.start()
         
     for p in processes:
         p.join()
