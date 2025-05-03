@@ -27,7 +27,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
 
     def on_snapshot(docs, changes, ts):
         ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
-        print(f"[{cam_name}] ACTIVE EVENT: {ACTIVE_EVENT}")
+        # print(f"[{cam_name}] ACTIVE EVENT: {ACTIVE_EVENT}")
 
     watch = ref.on_snapshot(on_snapshot)
 
