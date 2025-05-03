@@ -15,7 +15,6 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
     image_data = cv2.resize(frame, (608, 608))
     image_data = image_data / 255.
     image_data = image_data[np.newaxis, ...].astype(np.float32)
-    image_data = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     infer_weapon = detection_model.signatures['serving_default']
     batch_data = tf.constant(image_data)
