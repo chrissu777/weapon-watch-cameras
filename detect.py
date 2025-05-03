@@ -56,7 +56,7 @@ def detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, 
         # print(f"\nNO WEAPON DETECTED: {cam_name}")
         cam_ref.update({"detected": False})
         cam_ref.update({"bboxes": [0, 0, 0, 0]})
-        school_ref.update({"detected_cam_id": ""})
+        # school_ref.update({"detected_cam_id": ""})
     
     # if frame is not None and frame.size > 0:
     #     # cv2.namedWindow("Preview", cv2.WINDOW_NORMAL)
