@@ -48,6 +48,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
             time.sleep(0.1)
             if INVALID_FRAME_COUNT >= 10:
                 break
+        time.sleep(0.2)
 
     print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
     stream.stop()

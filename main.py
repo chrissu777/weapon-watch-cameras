@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
         i+=1
 
-        if i==2:
+        if i==4:
             break
         
 
