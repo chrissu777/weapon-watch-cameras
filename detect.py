@@ -72,7 +72,7 @@ def detect(frame, cam_id, cam_name, detection_model, bucket, school_ref, cam_ref
 
     if frame is not None and frame.size > 0:
         cv2.namedWindow(cam_name, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(cam_name, 800, 500)
+        cv2.resizeWindow(cam_name, 1000, 600)
         cv2.imshow(cam_name, frame)
         
         key = cv2.waitKey(1)
