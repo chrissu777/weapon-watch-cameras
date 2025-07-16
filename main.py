@@ -28,10 +28,9 @@ if __name__ == '__main__':
         # rtsp_url = cam.to_dict()['video link']
         video_link = f"footage/cam{cam_name[-1]}.mp4"
         
-        if i == 0:
-            p = multiprocessing.Process(target=process, args=(video_link, cam_id, video_link, 'UMD',))
-            processes.append(p)
-            p.start()
+        p = multiprocessing.Process(target=process, args=(video_link, cam_id, video_link, 'UMD',))
+        processes.append(p)
+        p.start()
         
     for p in processes:
         p.join()
