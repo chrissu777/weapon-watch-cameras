@@ -1,4 +1,5 @@
 import time
+import cv2
 from multiprocessing import Process
 from multiprocessing import Queue
 
@@ -29,13 +30,39 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track):
     ref = db.collection('schools').document('UMD')
     watch = ref.on_snapshot(on_snapshot)
     
-    stream = RTSPStream(rtsp_url)
+    # stream = RTSPStream(rtsp_url)
+    # INVALID_FRAME_COUNT = 0
+
+    # while True:
+    #     frame = stream.read()
+        
+    #     if frame is not None:
+    #         q_detect.put(frame)
+    #         q_record.put(frame)
+            
+    #         if ACTIVE_EVENT:
+    #             q_track.put(frame)
+            
+    #         INVALID_FRAME_COUNT = 0
+    #     else:
+    #         print("INVALID FRAME")
+    #         INVALID_FRAME_COUNT += 1
+    #         time.sleep(0.2)
+            
+    #         if INVALID_FRAME_COUNT == 10:
+    #             break
+
+    # print(f"\nTOO MANY INVALID FRAMES: {cam_name} CAMERA STREAM ENDED\n")
+    # stream.stop()
+    # watch.unsubscribe()
+    
+    cap = cv2.VideoCapture(rtsp_url)
     INVALID_FRAME_COUNT = 0
 
     while True:
-        frame = stream.read()
+        ret, frame = cap.read()
         
-        if frame is not None:
+        if ret:
             q_detect.put(frame)
             q_record.put(frame)
             
@@ -46,13 +73,14 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track):
         else:
             print("INVALID FRAME")
             INVALID_FRAME_COUNT += 1
-            time.sleep(0.1)
+            time.sleep(0.2)
             
             if INVALID_FRAME_COUNT == 10:
                 break
 
     print(f"\nTOO MANY INVALID FRAMES: {cam_name} CAMERA STREAM ENDED\n")
-    stream.stop()
+    cap.release()
+    cv2.destroyAllWindows()
     watch.unsubscribe()
 
 def process(rtsp_url, cam_id, cam_name, school):
