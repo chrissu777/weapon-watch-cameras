@@ -73,15 +73,11 @@ if __name__ == '__main__':
     # Fetch cameras
     # cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
-    output_dir = 'finals_verification/outputs/legit'
+    output_dir = 'finals_verification_vids/outputs/detected'
     threads = []
     q_display = queue.Queue(maxsize=32)
     for i in range (3,5):
-        # cam_id = cam.id
-        # data = cam.to_dict()
-        # cam_name = data.get('name', f'Cam-{cam_id}')
-        # rtsp_url = data.get('video_link', '')
-        rtsp_url = f'finals_verification/mp4_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
+        rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
         cam_id = i
         cam_name = f'Cam-{i}'
         
