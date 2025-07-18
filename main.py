@@ -26,16 +26,19 @@ if __name__ == '__main__':
     db = firestore.client()
 
     # Load shared detection model
-    print("[INFO] Loading detection model...")
+    print("\n[INFO] Loading detection model...")
     detection_model = tf.saved_model.load("detectionmodel")
+    infer_weapon = detection_model.signatures['serving_default']
+    print("[INFO] detection model loaded")
+    
     # Load shared YOLO model
-    print("[INFO] Loading YOLO model...")
+    print("\n[INFO] Loading YOLO model...")
     yolo = YOLO("yolov8n.pt")
     yolo.fuse()
     print("[INFO] YOLO model loaded.")
 
     # Load shared ReID model
-    print("[INFO] Loading ReID model...")
+    print("\n[INFO] Loading ReID model...")
     reid_model = torchreid.models.build_model(
         name='osnet_ibn_x1_0',
         num_classes=1000,
@@ -44,7 +47,7 @@ if __name__ == '__main__':
     )
     device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     reid_model.to(device).eval()
-    print(f"[INFO] ReID model loaded on {device}")
+    print(f"[INFO] ReID model loaded on {device}\n")
 
     reid_transform = transforms.Compose([
         transforms.Resize((256, 128)),
@@ -53,30 +56,26 @@ if __name__ == '__main__':
     ])
 
     # Fetch cameras
-    cams = db.collection('schools').document('UMD').collection('cameras').stream()
+    # cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
     threads = []
-    i = 0
-    for cam in cams:
-        cam_id = cam.id
-        data = cam.to_dict()
-        cam_name = data.get('name', f'Cam-{cam_id}')
-        rtsp_url = data.get('video_link', '')
-        # if cam_name == "Camera 1":
+    for i in range (3,5):
+        # cam_id = cam.id
+        # data = cam.to_dict()
+        # cam_name = data.get('name', f'Cam-{cam_id}')
+        # rtsp_url = data.get('video_link', '')
+        rtsp_url = f'finals_verification/mp4_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
+        cam_id = i
+        cam_name = f'Cam-{i}'
+        
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', detection_model, yolo, reid_model, reid_transform),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform),
             name=f"{cam_name}-main-thread",
             daemon=True
         )
         threads.append(t)
         t.start()
-
-        i+=1
-
-        if i==3:
-            break
-        
 
     for t in threads:
         t.join()

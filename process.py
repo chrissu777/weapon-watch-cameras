@@ -16,20 +16,20 @@ ACTIVE_EVENT = False
 def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
     global ACTIVE_EVENT
 
-    if not firebase_admin._apps:
-        cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred, {
-            "storageBucket": "weapon-watch.firebasestorage.app"
-        })
+    # if not firebase_admin._apps:
+    #     cred = credentials.Certificate("serviceAccountKey.json")
+    #     firebase_admin.initialize_app(cred, {
+    #         "storageBucket": "weapon-watch.firebasestorage.app"
+    #     })
 
-    db = firestore.client()
-    ref = db.collection('schools').document(school)
+    # db = firestore.client()
+    # ref = db.collection('schools').document(school)
 
-    def on_snapshot(docs, changes, ts):
-        ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
-        # print(f"[{cam_name}] ACTIVE EVENT: {ACTIVE_EVENT}")
+    # def on_snapshot(docs, changes, ts):
+    #     ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
+    #     # print(f"[{cam_name}] ACTIVE EVENT: {ACTIVE_EVENT}")
 
-    watch = ref.on_snapshot(on_snapshot)
+    # watch = ref.on_snapshot(on_snapshot)
 
     stream = RTSPStream(rtsp_url)
     INVALID_FRAME_COUNT = 0
@@ -52,7 +52,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
 
     print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
     stream.stop()
-    watch.unsubscribe()
+    # watch.unsubscribe()
 
 def threaded_process(rtsp_url, cam_id, cam_name, school,
                      detection_model, yolo, reid_model, reid_transform):
