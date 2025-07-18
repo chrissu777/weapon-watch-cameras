@@ -58,6 +58,7 @@ if __name__ == '__main__':
     # Fetch cameras
     # cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
+    output_dir = 'finals_verification/outputs/legit'
     threads = []
     for i in range (3,5):
         # cam_id = cam.id
@@ -70,7 +71,7 @@ if __name__ == '__main__':
         
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir),
             name=f"{cam_name}-main-thread",
             daemon=True
         )

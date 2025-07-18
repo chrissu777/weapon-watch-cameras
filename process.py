@@ -54,8 +54,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
     stream.stop()
     # watch.unsubscribe()
 
-def threaded_process(rtsp_url, cam_id, cam_name, school,
-                     detection_model, yolo, reid_model, reid_transform):
+def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir):
     # Thread-safe queues
     q_detect = queue.Queue(maxsize=32)
     q_record = queue.Queue(maxsize=32)
@@ -69,7 +68,7 @@ def threaded_process(rtsp_url, cam_id, cam_name, school,
     )
     t_detect = threading.Thread(
         target=detect_worker,
-        args=(q_detect, cam_id, cam_name, school, detection_model),
+        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir),
         name=f"{cam_name}-detector"
     )
     t_record = threading.Thread(
