@@ -17,7 +17,7 @@ from firebase_admin import credentials, firestore
 # Global flag to control shooter tracking logic
 ACTIVE_EVENT = False
 
-def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, q_display):
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
     global ACTIVE_EVENT
 
     # if not firebase_admin._apps:
@@ -54,8 +54,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, q_disp
             q_record.put(frame)
             if ACTIVE_EVENT:
                 q_track.put(frame)
-        
-            q_display.put((cam_name, frame))
 
         i += 1
         pbar.update(1)
@@ -95,12 +93,12 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     # Create threads
     t_read = threading.Thread(
         target=frame_reader,
-        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school, q_display),
+        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school),
         name=f"{cam_name}-reader"
     )
     t_detect = threading.Thread(
         target=detect_worker,
-        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir),
+        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, q_display),
         name=f"{cam_name}-detector"
     )
     t_record = threading.Thread(

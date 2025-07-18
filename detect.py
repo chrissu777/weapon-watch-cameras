@@ -72,12 +72,12 @@ import numpy as np
 import utils as utils
 import tensorflow as tf
 
-def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
+def detect(frame, cam_name, infer_weapon, i, output_dir, q_display, grayscale=False):
     if grayscale:
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
+        gray_frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
 
-    image_data = cv2.resize(frame, (608, 608)).astype(np.float32) / 255.
+    image_data = cv2.resize(gray_frame, (608, 608)).astype(np.float32) / 255.
     image_data = image_data[np.newaxis, ...]
 
     batch_data = tf.constant(image_data)
@@ -112,7 +112,10 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         output_path = f"{output_dir}/{cam_name}_{i}_{score}.jpg"
         cv2.imwrite(output_path, frame)
         
-def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir):
+    q_display.put((cam_name, frame))
+
+        
+def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, q_display):
     # if not firebase_admin._apps:
     #     cred = credentials.Certificate("serviceAccountKey.json")
     #     firebase_admin.initialize_app(cred, {
@@ -132,4 +135,4 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
     while True:
         frame = q_detect.get()    # blocks until a frame arrives
         # detect(frame, cam_id, cam_name, detection_model, blob, school_ref, cam_ref, buffer)
-        detect(frame, cam_name, infer_weapon, i, output_dir, True)
+        detect(frame, cam_name, infer_weapon, i, output_dir, q_display, True)
