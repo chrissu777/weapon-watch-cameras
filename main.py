@@ -1,5 +1,8 @@
 import os
 import threading
+import cv2
+import queue
+
 from process import threaded_process
 
 import torch
@@ -11,6 +14,18 @@ import tensorflow as tf
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+
+def display_loop(q_display):
+    print("\n[INFO] starting display\n")
+    while True:
+        try:
+            cam_name, frame = q_display.get(timeout=0.1)
+            cv2.imshow(cam_name, frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        except queue.Empty:
+            continue
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     # Suppress logs
@@ -60,6 +75,7 @@ if __name__ == '__main__':
 
     output_dir = 'finals_verification/outputs/legit'
     threads = []
+    q_display = queue.Queue(maxsize=32)
     for i in range (3,5):
         # cam_id = cam.id
         # data = cam.to_dict()
@@ -71,12 +87,14 @@ if __name__ == '__main__':
         
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, q_display),
             name=f"{cam_name}-main-thread",
             daemon=True
         )
         threads.append(t)
-        t.start()
+        t.start() 
+        
+    display_loop(q_display)   
 
     for t in threads:
         t.join()
