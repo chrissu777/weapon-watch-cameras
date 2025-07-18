@@ -1,6 +1,10 @@
 import time
 import threading
 import queue
+import cv2
+import os
+
+from tqdm import tqdm
 
 from detect import detect_worker
 from record import record_worker
@@ -13,7 +17,7 @@ from firebase_admin import credentials, firestore
 # Global flag to control shooter tracking logic
 ACTIVE_EVENT = False
 
-def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, q_display):
     global ACTIVE_EVENT
 
     # if not firebase_admin._apps:
@@ -31,30 +35,58 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
 
     # watch = ref.on_snapshot(on_snapshot)
 
-    stream = RTSPStream(rtsp_url)
-    INVALID_FRAME_COUNT = 0
+    print(f"Playing: {os.path.basename(rtsp_url)}")
+    cap = cv2.VideoCapture(rtsp_url)
+    if not cap.isOpened():
+        print(f"Error: Could not open {rtsp_url}")
 
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    pbar = tqdm(total=total_frames, desc=os.path.basename(rtsp_url), unit='frame')
+
+    i = 0
     while True:
-        frame = stream.read()
-        if frame is not None:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if i%2 == 0:
             q_detect.put(frame)
             q_record.put(frame)
             if ACTIVE_EVENT:
                 q_track.put(frame)
-            INVALID_FRAME_COUNT = 0
-        else:
-            print(f"[{cam_name}] Invalid frame received.")
-            INVALID_FRAME_COUNT += 1
-            time.sleep(0.1)
-            if INVALID_FRAME_COUNT >= 10:
-                break
-        time.sleep(0.2)
+        
+            q_display.put((cam_name, frame))
 
-    print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
-    stream.stop()
+        i += 1
+        pbar.update(1)
+
+    cap.release()
+
+
+    # stream = RTSPStream(rtsp_url)
+    # INVALID_FRAME_COUNT = 0
+
+    # while True:
+    #     frame = stream.read()
+    #     if frame is not None:
+    #         q_detect.put(frame)
+    #         q_record.put(frame)
+    #         if ACTIVE_EVENT:
+    #             q_track.put(frame)
+    #         INVALID_FRAME_COUNT = 0
+    #     else:
+    #         print(f"[{cam_name}] Invalid frame received.")
+    #         INVALID_FRAME_COUNT += 1
+    #         time.sleep(0.1)
+    #         if INVALID_FRAME_COUNT >= 10:
+    #             break
+    #     time.sleep(0.2)
+
+    # print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
+    # stream.stop()
     # watch.unsubscribe()
 
-def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir):
+def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, q_display):
     # Thread-safe queues
     q_detect = queue.Queue(maxsize=32)
     q_record = queue.Queue(maxsize=32)
@@ -63,7 +95,7 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     # Create threads
     t_read = threading.Thread(
         target=frame_reader,
-        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school),
+        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school, q_display),
         name=f"{cam_name}-reader"
     )
     t_detect = threading.Thread(
