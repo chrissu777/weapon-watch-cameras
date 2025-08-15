@@ -171,3 +171,4 @@ footage
 videos
 testing
 detectionmodel.onnx
+*.onnx
