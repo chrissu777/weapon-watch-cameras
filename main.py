@@ -69,7 +69,7 @@ if __name__ == '__main__':
     providers.append('CPUExecutionProvider')  # Fallback
     
     # Load ONNX model
-    ort_session = ort.InferenceSession("detectionmodel.onnx", providers=providers)
+    ort_session = ort.InferenceSession("og_detectionmodel.onnx", providers=providers)
     
     # Get input and output names
     input_name = ort_session.get_inputs()[0].name
