@@ -163,10 +163,11 @@ tracking/results
 
 serviceAccountKey.json
 
-test.py
 recordings
 detected_frames
-
-finals_verification
+test_scripts
+finals_verification_vids
 footage
 videos
+testing
+detectionmodel.onnx
