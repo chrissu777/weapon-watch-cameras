@@ -1,10 +1,7 @@
 import os
 import threading
-import cv2
-import queue
 import time
 import signal
-import sys
 import shutil
 
 from process import threaded_process
@@ -13,8 +10,6 @@ from process import threaded_process
 shutdown_flag = threading.Event()
 
 import torch
-# import torchreid
-from torchvision import transforms
 from ultralytics import YOLO
 
 import onnxruntime as ort

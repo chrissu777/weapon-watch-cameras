@@ -105,30 +105,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
             
         print(f"[INFO] {cam_name} finished processing video")
 
-
-    # stream = RTSPStream(rtsp_url)
-    # INVALID_FRAME_COUNT = 0
-
-    # while True:
-    #     frame = stream.read()
-    #     if frame is not None:
-    #         q_detect.put(frame)
-    #         q_record.put(frame)
-    #         if ACTIVE_EVENT:
-    #             q_track.put(frame)
-    #         INVALID_FRAME_COUNT = 0
-    #     else:
-    #         print(f"[{cam_name}] Invalid frame received.")
-    #         INVALID_FRAME_COUNT += 1
-    #         time.sleep(0.1)
-    #         if INVALID_FRAME_COUNT >= 10:
-    #             break
-    #     time.sleep(0.2)
-
-    # print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
-    # stream.stop()
-    # watch.unsubscribe()
-
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None):
     # Thread-safe queues
     q_detect = queue.Queue(maxsize=32)
