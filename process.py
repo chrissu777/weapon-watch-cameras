@@ -35,7 +35,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
 
     # watch = ref.on_snapshot(on_snapshot)
 
-    # print(f"Playing: {os.path.basename(rtsp_url)}")
     cap = cv2.VideoCapture(rtsp_url)
     if not cap.isOpened():
         print(f"Error: Could not open {rtsp_url}")
@@ -44,9 +43,8 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
     # Get video properties
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_delay = 1.0 / fps if fps > 0 else 0.033  # fallback to ~30fps
+    frame_delay = (1.0 / fps) - 0.001 if fps > 0 else 0.033
     
-    # print(f"[INFO] {cam_name}: {total_frames} frames at {fps:.2f} FPS")
     pbar = tqdm(total=total_frames, desc=f"{os.path.basename(rtsp_url)} ({fps:.1f}fps)", unit='frame')
 
     i = 0

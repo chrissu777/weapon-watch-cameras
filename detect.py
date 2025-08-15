@@ -6,6 +6,7 @@ import torchvision.ops as ops
 import queue
 
 def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
+    detection_found = False
     try:
         if grayscale:
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -135,8 +136,10 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         frame, score = utils.draw_bbox(frame, pred_bbox, info=False)
         output_path = f"{output_dir}/{cam_name}_{i}_{score}.jpg"
         cv2.imwrite(output_path, frame)
+        detection_found = True
     
-    # Detection complete - no display needed
+    # Return whether detection was found
+    return detection_found
 
 
 def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
@@ -144,6 +147,7 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
     
     # print(f"DETECTION WORKER READY FOR {cam_name}")
     frame_count = 0
+    detection_count = 0
     
     try:
         while True:
@@ -158,19 +162,24 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
                 # Check for end-of-video sentinel
                 if frame is None:
                     print(f"[INFO] {cam_name} detection worker received end signal")
+                    print(f"[INFO] {cam_name} completed with {detection_count} weapon detections")
                     break
                 
                 frame_count += 1
                 
                 # Process every frame that comes to detection queue
-                detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                had_detection = detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                if had_detection:
+                    detection_count += 1
                     
             except queue.Empty:
                 # No frames available - check if we should timeout
                 print(f"[INFO] {cam_name} detection worker timed out waiting for frames - exiting")
+                print(f"[INFO] {cam_name} completed with {detection_count} weapon detections")
                 break
             except Exception as e:
                 print(f"[ERROR] Detection worker error for {cam_name}: {e}")
                 time.sleep(0.1)
     except KeyboardInterrupt:
         print(f"\n[INFO] {cam_name} detection worker received keyboard interrupt")
+        print(f"[INFO] {cam_name} completed with {detection_count} weapon detections")
