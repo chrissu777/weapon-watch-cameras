@@ -19,8 +19,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 def signal_handler(sig, frame):
-    """Handle Ctrl+C gracefully"""
-    print('\n\n[INFO] Ctrl+C pressed. Shutting down gracefully...')
+    """Handle Ctrl+C"""
+    print('\n\n[INFO] Ctrl+C pressed. Shutting down ...')
     shutdown_flag.set()
     # Don't call sys.exit(0) here - let main thread handle cleanup
 
@@ -184,9 +184,9 @@ if __name__ == '__main__':
     print("\n[INFO] Starting video processing...")
     print("[INFO] Press Ctrl+C to stop\n")
     
-    for i in range (1,7):
-        rtsp_url = f'footage/cam{i}.mp4'
-        # rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
+    for i in range (3,6):
+        # rtsp_url = f'footage/cam{i}.mp4'
+        rtsp_url = f'finals_verification_vids/phase1-rifle-continuous/cam{i}_alex_2.mp4'
         cam_id = i
         cam_name = f'Cam-{i}'
         
