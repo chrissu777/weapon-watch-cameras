@@ -73,7 +73,7 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         class_scores = scores_tensor[:, class_idx]
         
         # Filter by score threshold
-        score_mask = class_scores > 0.25
+        score_mask = class_scores > 0.4
         if not score_mask.any():
             continue
             
@@ -153,7 +153,7 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
         while True:
             # Check for shutdown signal
             if shutdown_flag and shutdown_flag.is_set():
-                print(f"\n[INFO] {cam_name} detection worker shutting down...")
+                # print(f"\n[INFO] {cam_name} detection worker shutting down...")
                 break
             try:
                 # Use timeout to prevent indefinite blocking
@@ -161,7 +161,7 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
                 
                 # Check for end-of-video sentinel
                 if frame is None:
-                    print(f"[INFO] {cam_name} detection worker received end signal")
+                    # print(f"[INFO] {cam_name} detection worker received end signal")
                     print(f"[INFO] {cam_name} completed with {detection_count} weapon detections")
                     break
                 

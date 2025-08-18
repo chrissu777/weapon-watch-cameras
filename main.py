@@ -222,7 +222,7 @@ if __name__ == '__main__':
             print("\n[INFO] Keyboard interrupt received")
             shutdown_flag.set()
     
-    print("\n[INFO] Waiting for threads to complete...")
+    print("\n[INFO] Waiting for threads to complete, press Ctrl+C again")
     for t in threads:
         if t.is_alive():
             t.join(timeout=3.0)  # Wait max 3 seconds per thread

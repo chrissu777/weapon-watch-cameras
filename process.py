@@ -48,60 +48,56 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
     pbar = tqdm(total=total_frames, desc=f"{os.path.basename(rtsp_url)} ({fps:.1f}fps)", unit='frame')
 
     i = 0
-    try:
-        while True:
-            # Check for shutdown signal
-            if shutdown_flag and shutdown_flag.is_set():
-                print(f"\n[INFO] {cam_name} frame reader shutting down...")
-                break
-                
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            # Send every other frame to detection (every 2nd frame)
-            if i % 2 == 0:
-                try:
-                    q_detect.put(frame.copy(), timeout=0.1)
-                except queue.Full:
-                    pass  # Skip detection if queue is full
+    while True:
+        # Check for shutdown signal
+        if shutdown_flag and shutdown_flag.is_set():
+            # print(f"\n[INFO] {cam_name} frame reader shutting down...")
+            break
             
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Send every other frame to detection (every 2nd frame)
+        if i % 2 == 0:
             try:
-                q_record.put(frame, timeout=0.05)
+                q_detect.put(frame.copy(), timeout=0.1)
             except queue.Full:
-                # Skip recording frame if queue is full
-                pass
-                
-            if ACTIVE_EVENT:
-                try:
-                    q_track.put(frame, timeout=0.05)
-                except queue.Full:
-                    pass
-
-            i += 1
-            pbar.update(1)
-            
-            # Use actual video frame rate for timing
-            time.sleep(frame_delay)
-            
-    except KeyboardInterrupt:
-        print(f"\n[INFO] {cam_name} received keyboard interrupt")
-    finally:
-        pbar.close()
-        cap.release()
+                pass  # Skip detection if queue is full
         
-        # Signal end of video to all workers
         try:
-            q_detect.put(None, timeout=1.0)  # Sentinel value to signal end
+            q_record.put(frame, timeout=0.05)
         except queue.Full:
+            # Skip recording frame if queue is full
             pass
             
-        try:
-            q_record.put(None, timeout=1.0)  # Sentinel value to signal end
-        except queue.Full:
-            pass
+        if ACTIVE_EVENT:
+            try:
+                q_track.put(frame, timeout=0.05)
+            except queue.Full:
+                pass
+
+        i += 1
+        pbar.update(1)
+        
+        # Use actual video frame rate for timing
+        time.sleep(frame_delay)
             
-        print(f"[INFO] {cam_name} finished processing video")
+    pbar.close()
+    cap.release()
+    
+    # Signal end of video to all workers
+    try:
+        q_detect.put(None, timeout=1.0)  # Sentinel value to signal end
+    except queue.Full:
+        pass
+        
+    try:
+        q_record.put(None, timeout=1.0)  # Sentinel value to signal end
+    except queue.Full:
+        pass
+            
+        # print(f"[INFO] {cam_name} finished processing video")
 
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None):
     # Thread-safe queues
