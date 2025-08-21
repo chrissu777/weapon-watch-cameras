@@ -17,7 +17,7 @@ from firebase_admin import credentials, firestore
 # Global flag to control shooter tracking logic
 ACTIVE_EVENT = False
 
-def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag=None):
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag=None, display_queue=None, display_ready=None):
     global ACTIVE_EVENT
 
     # if not firebase_admin._apps:
@@ -58,12 +58,29 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
         if not ret:
             break
 
-        # Send every other frame to detection (every 2nd frame)
-        if i % 2 == 0:
+        # Send frame to detection first
+        frame_sent_to_detection = False
+        if display_queue is not None:
+            # Send every frame to detection when display is enabled
             try:
                 q_detect.put(frame.copy(), timeout=0.1)
+                frame_sent_to_detection = True
             except queue.Full:
                 pass  # Skip detection if queue is full
+        else:
+            # Send every other frame to detection (every 2nd frame) for performance
+            if i % 2 == 0:
+                try:
+                    q_detect.put(frame.copy(), timeout=0.1)
+                    frame_sent_to_detection = True
+                except queue.Full:
+                    pass  # Skip detection if queue is full
+        
+        # Wait for display to be ready before processing next frame
+        if display_queue is not None and display_ready is not None and frame_sent_to_detection:
+            # Wait for the previous frame to be displayed before continuing
+            display_ready.wait(timeout=5.0)  # Wait up to 5 seconds
+            display_ready.clear()  # Clear the event for next frame
         
         try:
             q_record.put(frame, timeout=0.05)
@@ -99,7 +116,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
             
         # print(f"[INFO] {cam_name} finished processing video")
 
-def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None):
+def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None, display_queue=None, display_ready=None):
     # Thread-safe queues
     q_detect = queue.Queue(maxsize=32)
     q_record = queue.Queue(maxsize=32)
@@ -108,12 +125,12 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     # Create threads
     t_read = threading.Thread(
         target=frame_reader,
-        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag),
+        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag, display_queue, display_ready),
         name=f"{cam_name}-reader"
     )
     t_detect = threading.Thread(
         target=detect_worker,
-        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag),
+        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag, display_queue),
         name=f"{cam_name}-detector"
     )
     t_record = threading.Thread(
