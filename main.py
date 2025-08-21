@@ -3,6 +3,9 @@ import threading
 import time
 import signal
 import shutil
+import sys
+import queue
+import cv2
 
 from process import threaded_process
 
@@ -14,6 +17,7 @@ from ultralytics import YOLO
 
 import onnxruntime as ort
 import numpy as np
+import tensorflow as tf
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -57,88 +61,158 @@ if __name__ == '__main__':
         })
     db = firestore.client()
 
-    # Load shared detection model
-    print("\n[INFO] Loading ONNX detection model...")
+    # Model selection and options - check command line arguments
+    model_type = 'onnx'  # default
+    show_frame = False  # default
     
-    # Create ONNX Runtime session with appropriate providers
-    providers = []
-    if torch.cuda.is_available():
-        providers.append('CUDAExecutionProvider')
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        providers.append('CoreMLExecutionProvider')  # For Mac M1/M2
-    providers.append('CPUExecutionProvider')  # Fallback
+    if len(sys.argv) > 1:
+        model_arg = sys.argv[1].lower()
+        if model_arg in ['onnx', 'keras', 'savedmodel']:
+            model_type = model_arg
+        else:
+            print(f"[ERROR] Invalid model type: {model_arg}")
+            print("[INFO] Usage: python main.py [onnx|keras|savedmodel] [--show-frame]")
+            print("[INFO] Defaulting to ONNX model")
     
-    # Load ONNX model
-    ort_session = ort.InferenceSession("og_detectionmodel.onnx", providers=providers)
+    # Check for show-frame option
+    display_queue = None
+    display_ready = None
+    if '--show-frame' in sys.argv:
+        display_queue = queue.Queue(maxsize=1)  # Small queue to force synchronization
+        display_ready = threading.Event()
+        display_ready.set()  # Initially ready
+        print("[INFO] Frame display enabled")
     
-    # Get input and output names
-    input_name = ort_session.get_inputs()[0].name
-    input_shape = ort_session.get_inputs()[0].shape
-    output_names = [output.name for output in ort_session.get_outputs()]
+    # Load shared detection model based on type
+    print(f"\n[INFO] Loading {model_type.upper()} detection model...")
+    
+    if model_type == 'onnx':
+        # ONNX model loading
+        model_path = "models/detectionmodel.onnx"
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"ONNX model not found: {model_path}")
+            
+        providers = []
+        if torch.cuda.is_available():
+            providers.append('CUDAExecutionProvider')
+        # Skip CoreML provider due to dynamic shape issues
+        providers.append('CPUExecutionProvider')  # Use CPU for stability
+        
+        ort_session = ort.InferenceSession(model_path, providers=providers)
+        
+        # Get input and output names
+        input_name = ort_session.get_inputs()[0].name
+        input_shape = ort_session.get_inputs()[0].shape
+        output_names = [output.name for output in ort_session.get_outputs()]
 
-    print(f"[INFO] ONNX model loaded with input shape: {input_shape}")
-    print(f"[INFO] Active providers: {ort_session.get_providers()}")
-    if 'CUDAExecutionProvider' in ort_session.get_providers():
-        print("[INFO] ✓ ONNX model will use GPU")
-    else:
-        print("[WARNING] ✗ ONNX model will use CPU only")
+        print(f"[INFO] ONNX model loaded with input shape: {input_shape}")
+        print(f"[INFO] Active providers: {ort_session.get_providers()}")
+        if 'CUDAExecutionProvider' in ort_session.get_providers():
+            print("[INFO] ✓ ONNX model will use GPU")
+        else:
+            print("[WARNING] ✗ ONNX model will use CPU only")
+        
+        # Create a thread lock for ONNX inference to prevent concurrent access
+        onnx_lock = threading.Lock()
+        
+        def infer_weapon(input_tensor):
+            """ONNX inference wrapper"""
+            with onnx_lock:
+                try:
+                    if isinstance(input_tensor, torch.Tensor):
+                        input_data = input_tensor.cpu().numpy()
+                    elif isinstance(input_tensor, np.ndarray):
+                        input_data = input_tensor
+                    else:
+                        input_data = np.array(input_tensor)
+                    
+                    if input_data.dtype != np.float32:
+                        input_data = input_data.astype(np.float32)
+                    
+                    outputs = ort_session.run(output_names, {input_name: input_data})
+                    del input_data
+                    
+                    if len(outputs) == 1:
+                        return {output_names[0]: outputs[0]}
+                    else:
+                        return {name: output for name, output in zip(output_names, outputs)}
+                        
+                except Exception as e:
+                    print(f"[ERROR] ONNX inference error: {e}")
+                    return {output_names[0]: np.array([])}
     
-    # Create a thread lock for ONNX inference to prevent concurrent access
-    onnx_lock = threading.Lock()
-    
-    # Create inference wrapper function with thread safety and error handling
-    def infer_weapon(input_tensor):
-        """
-        Thread-safe wrapper function for ONNX inference.
-        Includes error handling and memory optimization.
-        Returns a dictionary to match TensorFlow model output format.
-        """
-        with onnx_lock:  # Ensure thread-safe inference
+    elif model_type == 'keras':
+        # Keras model loading
+        model_path = "models/detectionmodel.keras"
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Keras model not found: {model_path}")
+            
+        keras_model = tf.keras.models.load_model(model_path)
+        print(f"[INFO] Keras model loaded successfully")
+        print(f"[INFO] Input shape: {keras_model.input_shape}")
+        
+        def infer_weapon(input_tensor):
+            """Keras inference wrapper"""
             try:
-                # Convert input to numpy if it's a torch tensor
                 if isinstance(input_tensor, torch.Tensor):
                     input_data = input_tensor.cpu().numpy()
                 elif isinstance(input_tensor, np.ndarray):
                     input_data = input_tensor
                 else:
-                    # Handle other input types
                     input_data = np.array(input_tensor)
                 
-                # Ensure input has correct dtype (float32 is standard)
                 if input_data.dtype != np.float32:
                     input_data = input_data.astype(np.float32)
                 
-                # Validate input shape
-                expected_batch = input_shape[0] if input_shape[0] != -1 else input_data.shape[0]
-                if len(input_data.shape) != len(input_shape):
-                    print(f"[WARNING] Input shape mismatch. Expected dims: {len(input_shape)}, got: {len(input_data.shape)}")
+                outputs = keras_model(input_data)
                 
-                # Run inference with error handling
-                outputs = ort_session.run(output_names, {input_name: input_data})
-                
-                # Clear any unnecessary references to free memory
-                del input_data
-                
-                # Format output to match TensorFlow model's dictionary format
-                # The TensorFlow model likely returned something like:
-                # {'output_0': array} or {'detection_output': array}
-                # Adjust the key name based on what your detect.py expects
-                if len(outputs) == 1:
-                    # Return as dictionary with the output name as key
-                    # You may need to adjust this key based on your TF model
-                    return {output_names[0]: outputs[0]}
+                # Handle different output formats
+                if isinstance(outputs, dict):
+                    return outputs
                 else:
-                    # Multiple outputs - return as dictionary
-                    return {name: output for name, output in zip(output_names, outputs)}
+                    return {'output_0': outputs}
                     
-            except ort.capi.onnxruntime_pybind11_state.RuntimeException as e:
-                print(f"[ERROR] ONNX Runtime error during inference: {e}")
-                print("[INFO] Consider reducing batch size or image resolution")
-                # Return empty dictionary to prevent crash
-                return {output_names[0]: np.array([])}
             except Exception as e:
-                print(f"[ERROR] Unexpected error during inference: {e}")
-                return {output_names[0]: np.array([])}
+                print(f"[ERROR] Keras inference error: {e}")
+                return {'output_0': np.array([])}
+    
+    elif model_type == 'savedmodel':
+        # SavedModel loading
+        model_path = "models/detectionmodel"
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"SavedModel not found: {model_path}")
+            
+        saved_model = tf.saved_model.load(model_path)
+        infer_fn = saved_model.signatures['serving_default']
+        print(f"[INFO] SavedModel loaded successfully")
+        print(f"[INFO] Input signature: {list(infer_fn.structured_input_signature[1].keys())}")
+        
+        def infer_weapon(input_tensor):
+            """SavedModel inference wrapper"""
+            try:
+                if isinstance(input_tensor, torch.Tensor):
+                    input_data = input_tensor.cpu().numpy()
+                elif isinstance(input_tensor, np.ndarray):
+                    input_data = input_tensor
+                else:
+                    input_data = np.array(input_tensor)
+                
+                if input_data.dtype != np.float32:
+                    input_data = input_data.astype(np.float32)
+                
+                # Call with the main input (image)
+                outputs = infer_fn(input_1=tf.constant(input_data))
+                
+                # Convert TensorFlow outputs to numpy and return as dict
+                result = {}
+                for key, value in outputs.items():
+                    result[key] = value.numpy()
+                
+                return result
+                    
+            except Exception as e:
+                print(f"[ERROR] SavedModel inference error: {e}")
+                return {'output_0': np.array([])}
     
     print("[INFO] Detection model loaded and ready")
 
@@ -181,12 +255,18 @@ if __name__ == '__main__':
     
     threads = []
     
-    print("\n[INFO] Starting video processing...")
-    print("[INFO] Press Ctrl+C to stop\n")
+    # Note: Display will be handled in main thread loop below
     
-    for i in range (3,6):
+    print("\n[INFO] Starting video processing...")
+    if display_queue is not None:
+        print("[INFO] Press 'q' in detection window or Ctrl+C to stop\n")
+    else:
+        print("[INFO] Press Ctrl+C to stop\n")
+    
+    for i in range (1):
         # rtsp_url = f'footage/cam{i}.mp4'
-        rtsp_url = f'finals_verification_vids/phase1-rifle-continuous/cam{i}_alex_2.mp4'
+        # rtsp_url = f'finals_verification_vids/phase1-rifle-continuous/cam{i}_alex_2.mp4'
+        rtsp_url = 'videos/rifle2.MOV'
         cam_id = i
         cam_name = f'Cam-{i}'
         
@@ -195,7 +275,7 @@ if __name__ == '__main__':
 
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag, display_queue, display_ready),
             name=f"{cam_name}-main-thread",
             daemon=False  # Don't kill threads on main exit - let them finish naturally
         )
@@ -203,9 +283,37 @@ if __name__ == '__main__':
         t.start() 
         
     try:
-        # Wait for all threads to complete naturally, but check for Ctrl+C periodically
+        # Main loop - handle display and check for thread completion
         while any(t.is_alive() for t in threads) and not shutdown_flag.is_set():
-            time.sleep(0.1)  # Check every 100ms
+            # Handle frame display in main thread
+            if display_queue is not None:
+                try:
+                    # Wait for frames to display (blocking to sync with frame reader)
+                    cam_name, frame = display_queue.get(timeout=0.1)
+                    
+                    # Display the frame
+                    window_name = f'Detection - {cam_name}'
+                    cv2.imshow(window_name, frame)
+                    
+                    # Signal that frame has been displayed
+                    display_ready.set()
+                    
+                    # Check for key press
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord('q'):
+                        print(f"\n[INFO] 'q' pressed in {window_name} - shutting down")
+                        shutdown_flag.set()
+                        break
+                        
+                except queue.Empty:
+                    # No frame available, just update windows
+                    cv2.waitKey(1)
+                except Exception as e:
+                    print(f"[ERROR] Display error: {e}")
+            else:
+                # No display, just sleep
+                time.sleep(0.1)
+                
     except KeyboardInterrupt:
         print("\n[INFO] Keyboard interrupt received")
         shutdown_flag.set()
@@ -226,6 +334,10 @@ if __name__ == '__main__':
     for t in threads:
         if t.is_alive():
             t.join(timeout=3.0)  # Wait max 3 seconds per thread
+    
+    # Clean up OpenCV windows
+    if display_queue is not None:
+        cv2.destroyAllWindows()
     
     print("[INFO] Program terminated successfully")
     
