@@ -16,6 +16,7 @@ def draw_bbox(image, bboxes, info = False, show_label=True, classes=['Gun', 'Kni
     image_h, image_w, _ = image.shape
 
     out_boxes, out_scores, out_classes, num_boxes = bboxes
+    score = 0.0
     for i in range(num_boxes):
         if int(out_classes[i]) < 0 or int(out_classes[i]) > num_classes:
             continue
