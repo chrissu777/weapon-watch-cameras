@@ -5,7 +5,7 @@ import torch
 import torchvision.ops as ops
 import queue
 
-def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
+def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False, display_queue=None):
     detection_found = False
     try:
         if grayscale:
@@ -41,20 +41,46 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
     # Extract predictions from dictionary
     value = next(iter(pred_bbox.values()))
     
-    # Convert to numpy if it's a tensor
+    # Convert to numpy if it's a tensor (handle both PyTorch and TensorFlow tensors)
     if isinstance(value, torch.Tensor):
         value = value.cpu().numpy()
+    elif hasattr(value, 'numpy'):  # TensorFlow tensor
+        value = value.numpy()
     
-    # Extract boxes and confidence scores
-    boxes = value[:, :, 0:4]  # [batch, num_boxes, 4]
-    pred_conf = value[:, :, 4:]  # [batch, num_boxes, num_classes]
+    # Handle different output shapes from different model types
+    try:
+        if len(value.shape) == 3:
+            # Standard 3D output: [batch, num_boxes, features]
+            boxes = value[:, :, 0:4]  # [batch, num_boxes, 4]
+            pred_conf = value[:, :, 4:]  # [batch, num_boxes, num_classes]
+        elif len(value.shape) == 2:
+            # 2D output: [num_boxes, features] - add batch dimension
+            value = value[np.newaxis, ...]  # Add batch dimension
+            boxes = value[:, :, 0:4]
+            pred_conf = value[:, :, 4:]
+        elif len(value.shape) == 1:
+            # 1D output - likely empty or malformed
+            print(f"[WARNING] Unexpected 1D output shape: {value.shape}")
+            return False
+        else:
+            print(f"[WARNING] Unexpected output shape: {value.shape}")
+            return False
+    except Exception as e:
+        print(f"[ERROR] Error parsing model output: {e}")
+        print(f"[DEBUG] Output shape: {value.shape}, type: {type(value)}")
+        return False
     
     # Reshape for PyTorch NMS
     batch_size = boxes.shape[0]
     num_boxes = boxes.shape[1]
     num_classes = pred_conf.shape[2]
     
-    # Convert to tensors for NMS
+    # Convert to tensors for NMS (ensure numpy arrays first)
+    if not isinstance(boxes, np.ndarray):
+        boxes = np.array(boxes)
+    if not isinstance(pred_conf, np.ndarray):
+        pred_conf = np.array(pred_conf)
+        
     boxes_tensor = torch.from_numpy(boxes.reshape(-1, 4))  # [total_boxes, 4]
     scores_tensor = torch.from_numpy(pred_conf.reshape(-1, num_classes))  # [total_boxes, num_classes]
     
@@ -138,11 +164,20 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         cv2.imwrite(output_path, frame)
         detection_found = True
     
+    # Send frame to display queue if requested
+    if display_queue is not None:
+        try:
+            # Send frame with camera name for display
+            display_queue.put((cam_name, frame.copy()), timeout=0.01)
+        except queue.Full:
+            print("[WARNING] display queue full")
+            pass  # Skip frame if display queue is full
+    
     # Return whether detection was found
     return detection_found
 
 
-def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
+def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None, display_queue=None):
     import time
     
     # print(f"DETECTION WORKER READY FOR {cam_name}")
@@ -168,7 +203,7 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
                 frame_count += 1
                 
                 # Process every frame that comes to detection queue
-                had_detection = detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                had_detection = detect(frame, cam_name, infer_weapon, i, output_dir, True, display_queue)
                 if had_detection:
                     detection_count += 1
                     
