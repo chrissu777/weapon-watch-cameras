@@ -284,6 +284,7 @@ if __name__ == '__main__':
         
     try:
         # Main loop - handle display and check for thread completion
+        print("[INFO] Starting display...")
         while any(t.is_alive() for t in threads) and not shutdown_flag.is_set():
             # Handle frame display in main thread
             if display_queue is not None:
@@ -330,7 +331,7 @@ if __name__ == '__main__':
             print("\n[INFO] Keyboard interrupt received")
             shutdown_flag.set()
     
-    print("\n[INFO] Waiting for threads to complete, press Ctrl+C again")
+    print("\n[INFO] Waiting for threads to complete, might need to Ctrl+C again")
     for t in threads:
         if t.is_alive():
             t.join(timeout=3.0)  # Wait max 3 seconds per thread
