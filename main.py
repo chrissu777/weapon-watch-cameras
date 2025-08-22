@@ -19,8 +19,11 @@ def display_loop(q_display):
     print("\n[INFO] starting display\n")
     while True:
         try:
-            cam_name, frame = q_display.get(timeout=0.1)
+            print("yo")
+            cam_name, frame = q_display.get()
+            print(frame)
             cv2.imshow(cam_name, frame)
+            print("gurt")
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         except queue.Empty:
@@ -31,6 +34,8 @@ if __name__ == '__main__':
     # Suppress logs
     os.environ["GRPC_VERBOSITY"] = "ERROR"
     os.environ["GLOG_minloglevel"] = "2"
+    # Force TCP transport for RTSP
+    #os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 
     # Firebase initialization
     if not firebase_admin._apps:
@@ -71,24 +76,25 @@ if __name__ == '__main__':
     ])
 
     # Fetch cameras
-    # cams = db.collection('schools').document('UMD').collection('cameras').stream()
+    cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
-    output_dir = 'finals_verification_vids/outputs/detected'
     threads = []
     q_display = queue.Queue(maxsize=32)
-    for i in range (3,5):
-        rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
-        cam_id = i
-        cam_name = f'Cam-{i}'
+    for cam in cams:
+        rtsp_url = cam.to_dict()['video_link']
+        cam_id = cam.id
+        cam_name = cam.to_dict()['name']
         
-        t = threading.Thread(
-            target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, q_display),
-            name=f"{cam_name}-main-thread",
-            daemon=True
-        )
-        threads.append(t)
-        t.start() 
+
+        if cam_name == "Camera 1":
+            t = threading.Thread(
+                target=threaded_process,
+                args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, q_display, db),
+                name=f"{cam_name}-main-thread",
+                daemon=True
+            )
+            threads.append(t)
+            t.start() 
         
     display_loop(q_display)   
 
