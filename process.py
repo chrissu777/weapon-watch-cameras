@@ -32,14 +32,15 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school):
             break
 
         if i%2 == 0:
-            q_detect.put(frame)
-            q_record.put(frame)
-            if ACTIVE_EVENT:
-                q_track.put(frame)
-
+            try:
+                q_detect.put(frame)
+                q_record.put(frame)
+                if ACTIVE_EVENT:
+                    q_track.put(frame)
+            except queue.Full:
+                pass  # drop frame instead of blocking
         i += 1
         pbar.update(1)
-
     cap.release()
 
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, q_display, db):

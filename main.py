@@ -19,12 +19,9 @@ def display_loop(q_display):
     print("\n[INFO] starting display\n")
     while True:
         try:
-            print("yo")
-            cam_name, frame = q_display.get()
-            print(frame)
+            cam_name, frame = q_display.get(timeout=0.1)
             cv2.imshow(cam_name, frame)
-            print("gurt")
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(20) & 0xFF == ord('q'):
                 break
         except queue.Empty:
             continue
@@ -80,11 +77,32 @@ if __name__ == '__main__':
 
     threads = []
     q_display = queue.Queue(maxsize=32)
+
+    # rtsp_url = f'footage/cam{i}.mp4'
+    # # rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
+    # cam_id = i
+    # cam_name = f'Cam-{i}'
+    
+    # reid_model = 0
+    # reid_transform = 0
+
+    # t = threading.Thread(
+    #     target=threaded_process,
+    #     args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag),
+    #     name=f"{cam_name}-main-thread",
+    #     daemon=False  # Don't kill threads on main exit - let them finish naturally
+    # )
+    # threads.append(t)
+    # t.start() 
+
+    # img = cv2.imread("detected_frames/Cam-3.jpg")
+    # print(img.shape)
+    # cv2.imshow("ex", img)
     for cam in cams:
-        rtsp_url = cam.to_dict()['video_link']
+        # rtsp_url = cam.to_dict()['video_link']
+        rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam3_joey.mp4'
         cam_id = cam.id
-        cam_name = cam.to_dict()['name']
-        
+        cam_name = cam.to_dict()['name']        
 
         if cam_name == "Camera 1":
             t = threading.Thread(
