@@ -66,6 +66,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
                 try:
                     q_detect.put(frame.copy(), timeout=0.1)
                 except queue.Full:
+                    print('[WARNING] Detection queue full')
                     pass  # Skip detection if queue is full
             
             try:
