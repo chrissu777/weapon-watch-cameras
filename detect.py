@@ -49,8 +49,6 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
     pred_conf = value[:, :, 4:]  # [batch, num_boxes, num_classes]
     
     # Reshape for PyTorch NMS
-    batch_size = boxes.shape[0]
-    num_boxes = boxes.shape[1]
     num_classes = pred_conf.shape[2]
     
     # Convert to tensors for NMS
@@ -135,9 +133,6 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         frame, score = utils.draw_bbox(frame, pred_bbox, info=False)
         output_path = f"{output_dir}/{cam_name}_{i}_{score}.jpg"
         cv2.imwrite(output_path, frame)
-    
-    # Detection complete - no display needed
-
 
 def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
     import time
