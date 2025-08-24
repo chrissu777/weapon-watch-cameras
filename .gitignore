@@ -156,18 +156,18 @@ app-example
 google-services.json
 
 # Ignore detection model directory
-detectionmodel/
+models
+
+finetune-data
 
 tracking/videos
 tracking/results
 
-serviceAccountKey.json
-
 recordings
-detected_frames
 test_scripts
 finals_verification_vids
 footage
 videos
 testing
-detectionmodel.onnx
+
+serviceAccountKey.json

@@ -38,7 +38,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
     # print(f"Playing: {os.path.basename(rtsp_url)}")
     cap = cv2.VideoCapture(rtsp_url)
     if not cap.isOpened():
-        print(f"Error: Could not open {rtsp_url}")
+        print(f"Error: Cannot open {rtsp_url}")
         return
 
     # Get video properties
