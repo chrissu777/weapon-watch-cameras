@@ -137,14 +137,12 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
 def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
     import time
     
-    # print(f"DETECTION WORKER READY FOR {cam_name}")
     frame_count = 0
     
     try:
         while True:
             # Check for shutdown signal
             if shutdown_flag and shutdown_flag.is_set():
-                print(f"\n[INFO] {cam_name} detection worker shutting down...")
                 break
             try:
                 # Use timeout to prevent indefinite blocking
@@ -152,7 +150,6 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
                 
                 # Check for end-of-video sentinel
                 if frame is None:
-                    print(f"[INFO] {cam_name} detection worker received end signal")
                     break
                 
                 frame_count += 1

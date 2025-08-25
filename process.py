@@ -54,7 +54,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
         while True:
             # Check for shutdown signal
             if shutdown_flag and shutdown_flag.is_set():
-                print(f"\n[INFO] {cam_name} frame reader shutting down...")
                 break
                 
             ret, frame = cap.read()
@@ -103,9 +102,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
             q_record.put(None, timeout=1.0)  # Sentinel value to signal end
         except queue.Full:
             pass
-            
-        print(f"[INFO] {cam_name} finished processing video")
-
 
     # stream = RTSPStream(rtsp_url)
     # INVALID_FRAME_COUNT = 0
