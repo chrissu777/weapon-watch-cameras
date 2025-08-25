@@ -171,3 +171,5 @@ videos
 testing
 
 serviceAccountKey.json
+
+**/*.onnx
