@@ -1,8 +1,8 @@
-import onnxruntime as ort
-import numpy as np
-
 import torch
 import threading
+
+import onnxruntime as ort
+import numpy as np
 
 def load_onnx(model_path):
     providers = []
