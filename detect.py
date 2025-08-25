@@ -5,7 +5,7 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
     # Preprocess frame
     image_data = utils.preprocess_frame(frame, grayscale)
     if image_data is None:
-        return  # Skip this frame if preprocessing failed
+        return None  # Skip this frame if preprocessing failed
     
     # Prepare batch data for model
     batch_data = utils.prepare_batch_data(image_data, infer_weapon)
@@ -15,7 +15,7 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
         pred_bbox = infer_weapon(batch_data)
     except Exception as e:
         print(f"[ERROR] Inference failed for {cam_name}: {e}")
-        return  # Skip this frame
+        return None  # Skip this frame
     
     # Extract predictions
     boxes, pred_conf = utils.extract_predictions(pred_bbox)
@@ -25,8 +25,11 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
     
     # Process and save detections
     utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, i, output_dir)
+    
+    # Return detection data for GUI annotation
+    return boxes_np, scores_np, classes_np, valid_detections
 
-def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
+def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
     import time
     
     frame_count = 0
@@ -47,7 +50,24 @@ def detect_worker(q_detect, cam_id, cam_name, school, infer_weapon, i, output_di
                 frame_count += 1
                 
                 # Process every frame that comes to detection queue
-                detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                detection_result = detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                
+                # Create annotated frame for GUI display
+                if q_display is not None and detection_result is not None:
+                    boxes_np, scores_np, classes_np, valid_detections = detection_result
+                    # Create annotated frame using existing utils function
+                    annotated_frame, _ = utils.draw_bbox(frame.copy(), (boxes_np, scores_np, classes_np, valid_detections), show_label=True)
+                    
+                    try:
+                        q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
+                    except queue.Full:
+                        pass  # Skip if GUI queue is full
+                elif q_display is not None:
+                    # No detections, send original frame
+                    try:
+                        q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
+                    except queue.Full:
+                        pass  # Skip if GUI queue is full
                     
             except queue.Empty:
                 # No frames available - check if we should timeout

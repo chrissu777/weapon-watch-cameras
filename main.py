@@ -3,9 +3,11 @@ import threading
 import time
 import signal
 import shutil
+import queue
 
 from process import threaded_process
 from load_onnx import load_onnx
+from gui_display import gui_display_worker
 
 # Global shutdown flag
 shutdown_flag = threading.Event()
@@ -83,6 +85,8 @@ if __name__ == '__main__':
     print("[INFO] Press Ctrl+C to stop\n")
     
     threads = []
+    gui_queues = {}  # Dictionary to store GUI queues by camera ID
+    
     for i in range (1,7):
         rtsp_url = f'footage/cam{i}.mp4'
         # rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
@@ -92,14 +96,29 @@ if __name__ == '__main__':
         reid_model = 0
         reid_transform = 0
 
+        # Create GUI queue for this camera
+        gui_queues[cam_id] = queue.Queue(maxsize=32)
+
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag, gui_queues[cam_id]),
             name=f"{cam_name}-main-thread",
             daemon=False  # Don't kill threads on main exit - let them finish naturally
         )
         threads.append(t)
         t.start() 
+        
+    # Start GUI display thread
+    print("[INFO] Starting GUI display thread...")
+    gui_thread = threading.Thread(
+        target=gui_display_worker,
+        args=(gui_queues, shutdown_flag),
+        name="GUI-Display",
+        daemon=False
+    )
+    threads.append(gui_thread)
+    gui_thread.start()
+    print("[INFO] GUI window opened. Press 'q' or ESC in the GUI window to stop all processing.")
         
     try:
         # Wait for all threads to complete naturally, but check for Ctrl+C periodically

@@ -1,0 +1,103 @@
+import cv2
+import queue
+import threading
+import numpy as np
+from collections import defaultdict
+import time
+
+class MultiCameraDisplay:
+    def __init__(self, num_cameras=6):
+        self.num_cameras = num_cameras
+        self.latest_frames = {}
+        self.frame_lock = threading.Lock()
+        self.window_name = "Weapon Detection - Multi Camera View"
+        
+    def update_frame(self, cam_id, cam_name, frame):
+        """Update the latest frame for a specific camera"""
+        with self.frame_lock:
+            self.latest_frames[cam_id] = (cam_name, frame)
+    
+    def create_grid_display(self):
+        """Create a 2x3 grid display for 6 cameras"""
+        # Grid configuration for 6 cameras (2 rows, 3 columns)
+        grid_h, grid_w = 2, 3
+        cell_h, cell_w = 240, 320  # Resize each camera view
+        
+        # Create empty grid
+        grid_image = np.zeros((grid_h * cell_h, grid_w * cell_w, 3), dtype=np.uint8)
+        
+        with self.frame_lock:
+            for i in range(1, self.num_cameras + 1):  # Cameras are numbered 1-6
+                row = (i - 1) // grid_w
+                col = (i - 1) % grid_w
+                
+                if i in self.latest_frames:
+                    cam_name, frame = self.latest_frames[i]
+                    # Resize frame to fit grid cell
+                    resized_frame = cv2.resize(frame, (cell_w, cell_h))
+                    
+                    # Add camera name overlay
+                    cv2.putText(resized_frame, cam_name, (10, 25), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    
+                    # Add timestamp
+                    timestamp = time.strftime("%H:%M:%S")
+                    cv2.putText(resized_frame, timestamp, (10, cell_h - 10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                else:
+                    # Create placeholder for missing camera
+                    resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
+                    cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h//2), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                
+                # Place in grid
+                y1, y2 = row * cell_h, (row + 1) * cell_h
+                x1, x2 = col * cell_w, (col + 1) * cell_w
+                grid_image[y1:y2, x1:x2] = resized_frame
+        
+        return grid_image
+
+def gui_display_worker(gui_queues, shutdown_flag=None):
+    """Main GUI display worker thread"""
+    display = MultiCameraDisplay()
+    
+    print(f"[INFO] Starting GUI display worker with {len(gui_queues)} camera queues")
+    
+    try:
+        while True:
+            if shutdown_flag and shutdown_flag.is_set():
+                break
+                
+            # Check all GUI queues for new frames
+            frames_updated = False
+            for cam_id, q_gui in gui_queues.items():
+                try:
+                    while True:  # Process all available frames
+                        cam_id_recv, cam_name, frame = q_gui.get_nowait()
+                        display.update_frame(cam_id_recv, cam_name, frame)
+                        frames_updated = True
+                except queue.Empty:
+                    pass  # No frames available for this camera
+            
+            # Create and display grid (only if we have frames to show)
+            grid_image = display.create_grid_display()
+            cv2.imshow(display.window_name, grid_image)
+            
+            # Check for quit key
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q') or key == 27:  # 'q' or ESC
+                print("\n[INFO] GUI window closed by user")
+                if shutdown_flag:
+                    shutdown_flag.set()
+                break
+                
+            # Small delay to prevent excessive CPU usage
+            time.sleep(0.03)  # ~30 FPS update rate
+            
+    except KeyboardInterrupt:
+        print("\n[INFO] GUI display worker received keyboard interrupt")
+    except Exception as e:
+        print(f"[ERROR] GUI display worker error: {e}")
+    finally:
+        cv2.destroyAllWindows()
+        print("[INFO] GUI display worker terminated")

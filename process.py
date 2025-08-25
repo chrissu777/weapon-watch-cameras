@@ -17,7 +17,7 @@ from firebase_admin import credentials, firestore
 # Global flag to control shooter tracking logic
 ACTIVE_EVENT = False
 
-def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag=None):
+def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, school, shutdown_flag=None):
     global ACTIVE_EVENT
 
     # if not firebase_admin._apps:
@@ -103,6 +103,12 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
         except queue.Full:
             pass
 
+        try:
+            q_display.put(None, timeout=1.0)  # Sentinel value to signal end
+        except queue.Full:
+            pass
+
+
     # stream = RTSPStream(rtsp_url)
     # INVALID_FRAME_COUNT = 0
 
@@ -119,28 +125,30 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdo
     #         INVALID_FRAME_COUNT += 1
     #         time.sleep(0.1)
     #         if INVALID_FRAME_COUNT >= 10:
-    #             break
+    #             break``
     #     time.sleep(0.2)
 
     # print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
     # stream.stop()
     # watch.unsubscribe()
 
-def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None):
+def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag=None, q_display=None):
     # Thread-safe queues
     q_detect = queue.Queue(maxsize=32)
     q_record = queue.Queue(maxsize=32)
     q_track = queue.Queue(maxsize=32)
+    if q_display is None:
+        q_display = queue.Queue(maxsize=32)
 
     # Create threads
     t_read = threading.Thread(
         target=frame_reader,
-        args=(rtsp_url, cam_name, q_detect, q_record, q_track, school, shutdown_flag),
+        args=(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, school, shutdown_flag),
         name=f"{cam_name}-reader"
     )
     t_detect = threading.Thread(
         target=detect_worker,
-        args=(q_detect, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag),
+        args=(q_detect, q_display, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag),
         name=f"{cam_name}-detector"
     )
     t_record = threading.Thread(

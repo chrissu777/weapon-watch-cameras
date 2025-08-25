@@ -17,6 +17,7 @@ def format_boxes(bboxes, image_height, image_width):
 def draw_bbox(image, bboxes, info = False, show_label=True, classes=['Gun', 'Knife', 'Rifle']):
     num_classes = len(classes)
     image_h, image_w, _ = image.shape
+    score = 0.0  
 
     out_boxes, out_scores, out_classes, num_boxes = bboxes
     for i in range(num_boxes):
