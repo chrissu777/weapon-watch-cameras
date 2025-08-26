@@ -8,8 +8,9 @@ def load_onnx(model_path):
     providers = []
     if torch.cuda.is_available():
         providers.append('CUDAExecutionProvider')
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        providers.append('CoreMLExecutionProvider')  # For Mac M1/M2
+    # Skip CoreMLExecutionProvider due to dynamic shape issues
+    # elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    #     providers.append('CoreMLExecutionProvider')  # For Mac M1/M2
     providers.append('CPUExecutionProvider')  # Fallback
     ort_session = ort.InferenceSession(model_path, providers=providers)
         

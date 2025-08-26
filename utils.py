@@ -97,11 +97,47 @@ def extract_predictions(pred_bbox):
     elif isinstance(value, (list, tuple)):  # Handle list/tuple inputs
         value = np.array(value)
     
-    # Extract boxes and confidence scores
-    boxes = value[:, :, 0:4]  # [batch, num_boxes, 4]
-    pred_conf = value[:, :, 4:]  # [batch, num_boxes, num_classes]
-    
-    return boxes, pred_conf
+    # Handle different output shapes and empty outputs
+    try:
+        print(f"[DEBUG] Model output shape: {value.shape}, dtype: {value.dtype}")
+        
+        # Check for empty output
+        if value.size == 0:
+            print("[WARNING] Model returned empty output")
+            return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
+        
+        if len(value.shape) == 3:
+            # Standard 3D output: [batch, num_boxes, features]
+            if value.shape[2] >= 5:  # Need at least 5 features (x,y,w,h,conf)
+                boxes = value[:, :, 0:4]  # [batch, num_boxes, 4]
+                pred_conf = value[:, :, 4:]  # [batch, num_boxes, num_classes]
+            else:
+                print(f"[WARNING] Insufficient features in output: {value.shape[2]}")
+                return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
+        elif len(value.shape) == 2:
+            # 2D output: [num_boxes, features] - add batch dimension
+            if value.shape[1] >= 5:
+                value = value[np.newaxis, ...]
+                boxes = value[:, :, 0:4]
+                pred_conf = value[:, :, 4:]
+            else:
+                print(f"[WARNING] Insufficient features in 2D output: {value.shape[1]}")
+                return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
+        elif len(value.shape) == 1:
+            # 1D output - likely empty or malformed
+            print(f"[WARNING] Unexpected 1D output shape: {value.shape}")
+            return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
+        else:
+            print(f"[WARNING] Unexpected output shape: {value.shape}")
+            return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
+            
+        print(f"[DEBUG] Extracted boxes shape: {boxes.shape}, pred_conf shape: {pred_conf.shape}")
+        return boxes, pred_conf
+        
+    except Exception as e:
+        print(f"[ERROR] Error parsing model output: {e}")
+        print(f"[DEBUG] Output shape: {value.shape if hasattr(value, 'shape') else 'No shape'}")
+        return np.array([]).reshape(1, 0, 4), np.array([]).reshape(1, 0, 1)
 
 def apply_nms(boxes, pred_conf, score_threshold=0.25, iou_threshold=0.5, max_detections=50):
     """Apply Non-Maximum Suppression to filter predictions"""
@@ -117,11 +153,31 @@ def apply_nms(boxes, pred_conf, score_threshold=0.25, iou_threshold=0.5, max_det
     elif not isinstance(pred_conf, np.ndarray):
         pred_conf = np.array(pred_conf)
     
+    # Handle empty inputs
+    if boxes.size == 0 or pred_conf.size == 0:
+        print("[INFO] Empty input to NMS - returning empty results")
+        return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
+    
+    # Check dimensions
+    if len(boxes.shape) != 3 or len(pred_conf.shape) != 3:
+        print(f"[WARNING] Unexpected input shapes - boxes: {boxes.shape}, pred_conf: {pred_conf.shape}")
+        return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
+    
     num_classes = pred_conf.shape[2]
     
-    # Convert to tensors for NMS
-    boxes_tensor = torch.from_numpy(boxes.reshape(-1, 4))  # [total_boxes, 4]
-    scores_tensor = torch.from_numpy(pred_conf.reshape(-1, num_classes))  # [total_boxes, num_classes]
+    # Check if we have any boxes to process
+    if boxes.shape[1] == 0:
+        print("[INFO] No boxes to process in NMS")
+        return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
+    
+    try:
+        # Convert to tensors for NMS
+        boxes_tensor = torch.from_numpy(boxes.reshape(-1, 4))  # [total_boxes, 4]
+        scores_tensor = torch.from_numpy(pred_conf.reshape(-1, num_classes))  # [total_boxes, num_classes]
+    except Exception as e:
+        print(f"[ERROR] Failed to reshape arrays for NMS: {e}")
+        print(f"[DEBUG] boxes shape: {boxes.shape}, pred_conf shape: {pred_conf.shape}")
+        return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
     
     # Move to CPU to prevent GPU memory issues
     if boxes_tensor.is_cuda:
