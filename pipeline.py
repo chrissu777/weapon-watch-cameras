@@ -3,6 +3,8 @@ import time
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
+from dotenv import load_dotenv
+import os
 from inference import get_model   # ✅ Roboflow Inference SDK
 
 ###############################################################################
@@ -21,7 +23,10 @@ SOURCES = [
 # Load your Roboflow model once
 # Replace with your workspace/project/version
 print("🔄 Loading Roboflow model...")
-model = get_model(model_id="weapon-watch-detection-model-hmqjk/1", api_key="lTFTgHBmduzzWLRqyUeT")  
+load_dotenv()
+ROBOFLOW_MODEL_ID = os.getenv("ROBOFLOW_MODEL_ID")
+ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
+model = get_model(model_id=ROBOFLOW_MODEL_ID, api_key=ROBOFLOW_API_KEY)  
 print("✅ Model ready")
 
 CONF_TH = 0.6
