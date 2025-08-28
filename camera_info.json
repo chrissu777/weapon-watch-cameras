@@ -12,17 +12,6 @@
             "confirmed": false
         },
         {
-            "name": "Camera 2",
-            "building": "IDEA factory",
-            "floor": 1,
-
-            "video type": "rtsp",
-            "video link": "rtsp://192.168.1.121:554/profile2/media.smp",
-
-            "detected": false,
-            "confirmed": false
-        },
-        {
             "name": "Camera 3",
             "building": "IDEA factory",
             "floor": 1,

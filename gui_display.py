@@ -1,12 +1,12 @@
 import cv2
 import queue
 import threading
-import numpy as np
-from collections import defaultdict
 import time
 
+import numpy as np
+
 class MultiCameraDisplay:
-    def __init__(self, num_cameras=6):
+    def __init__(self, num_cameras):
         self.num_cameras = num_cameras
         self.latest_frames = {}
         self.frame_lock = threading.Lock()
@@ -21,17 +21,17 @@ class MultiCameraDisplay:
         """Create a 2x3 grid display for 6 cameras"""
         # Grid configuration for 6 cameras (2 rows, 3 columns)
         grid_h, grid_w = 2, 3
-        cell_h, cell_w = 240, 320  # Resize each camera view
-        
+        cell_h, cell_w = 360, 480  # Resize each camera view
+         
         # Create empty grid
         grid_image = np.zeros((grid_h * cell_h, grid_w * cell_w, 3), dtype=np.uint8)
         
         with self.frame_lock:
-            for i in range(1, self.num_cameras + 1):  # Cameras are numbered 1-6
+            for i in range(1, self.num_cameras + 1):
                 row = (i - 1) // grid_w
                 col = (i - 1) % grid_w
                 
-                if i in self.latest_frames:
+                try:
                     cam_name, frame = self.latest_frames[i]
                     # Resize frame to fit grid cell
                     resized_frame = cv2.resize(frame, (cell_w, cell_h))
@@ -44,8 +44,7 @@ class MultiCameraDisplay:
                     timestamp = time.strftime("%H:%M:%S")
                     cv2.putText(resized_frame, timestamp, (10, cell_h - 10), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                else:
-                    # Create placeholder for missing camera
+                except:
                     resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
                     cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h//2), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
@@ -59,7 +58,7 @@ class MultiCameraDisplay:
 
 def gui_display_worker(gui_queues, shutdown_flag=None):
     """Main GUI display worker thread"""
-    display = MultiCameraDisplay()
+    display = MultiCameraDisplay(len(gui_queues))
     
     print(f"[INFO] Starting GUI display worker with {len(gui_queues)} camera queues")
     

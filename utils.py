@@ -177,7 +177,7 @@ def apply_nms(boxes, pred_conf, score_threshold=0.25, iou_threshold=0.5, max_det
     
     return boxes_np, scores_np, classes_np, valid_detections
 
-def process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, i, output_dir):
+def process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir):
     """Process valid detections and save results"""
     # Filter out class 1.0 if present (assuming this is a background/ignore class)
     if len(classes_np) > 0 and 1.0 in classes_np:
@@ -188,5 +188,5 @@ def process_detections(boxes_np, scores_np, classes_np, valid_detections, frame,
         bboxes = format_boxes(boxes_np[:valid_detections], original_h, original_w)
         pred_bbox = [bboxes, scores_np, classes_np, valid_detections]
         frame, score = draw_bbox(frame, pred_bbox, info=False)
-        output_path = f"{output_dir}/{cam_name}_{i}_{score}.jpg"
+        output_path = f"{output_dir}/{cam_name}_{score}.jpg"
         cv2.imwrite(output_path, frame)

@@ -42,6 +42,7 @@ if __name__ == '__main__':
             "storageBucket": "weapon-watch.firebasestorage.app"
         })
     db = firestore.client()
+    cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
     # Load shared detection model
     print("\n[INFO] Loading ONNX detection model...")
@@ -72,9 +73,6 @@ if __name__ == '__main__':
     #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     # ])
 
-    # Fetch cameras
-    # cams = db.collection('schools').document('UMD').collection('cameras').stream()
-
     output_dir = 'testing/outputs/detected'
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
@@ -87,11 +85,10 @@ if __name__ == '__main__':
     threads = []
     gui_queues = {}  # Dictionary to store GUI queues by camera ID
     
-    for i in range (1,7):
-        rtsp_url = f'footage/cam{i}.mp4'
-        # rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
-        cam_id = i
-        cam_name = f'Cam-{i}'
+    for cam in cams:
+        cam_id = cam.id
+        cam_name = cam.to_dict()['name']
+        rtsp_url = cam.to_dict()['video link']
         
         reid_model = 0
         reid_transform = 0
@@ -101,7 +98,7 @@ if __name__ == '__main__':
 
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, i, output_dir, shutdown_flag, gui_queues[cam_id]),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag, gui_queues[cam_id]),
             name=f"{cam_name}-main-thread",
             daemon=False  # Don't kill threads on main exit - let them finish naturally
         )

@@ -1,7 +1,7 @@
 import queue
 import utils as utils
 
-def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
+def detect(frame, cam_name, infer_weapon, output_dir, grayscale=False):
     # Preprocess frame
     image_data = utils.preprocess_frame(frame, grayscale)
     if image_data is None:
@@ -24,12 +24,12 @@ def detect(frame, cam_name, infer_weapon, i, output_dir, grayscale=False):
     boxes_np, scores_np, classes_np, valid_detections = utils.apply_nms(boxes, pred_conf)
     
     # Process and save detections
-    utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, i, output_dir)
+    utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
     
     # Return detection data for GUI annotation
     return boxes_np, scores_np, classes_np, valid_detections
 
-def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, i, output_dir, shutdown_flag=None):
+def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag=None):
     import time
     
     frame_count = 0
@@ -50,7 +50,7 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, i
                 frame_count += 1
                 
                 # Process every frame that comes to detection queue
-                detection_result = detect(frame, cam_name, infer_weapon, i, output_dir, True)
+                detection_result = detect(frame, cam_name, infer_weapon, output_dir, True)
                 
                 # Create annotated frame for GUI display
                 if q_display is not None and detection_result is not None:
