@@ -8,7 +8,7 @@ import queue
 from process import threaded_process
 from load_onnx import load_onnx
 from gui_display import gui_display_worker
-from models.reid_model import SimpleReIDModel
+from reid_model import SimpleReIDModel
 
 # Global shutdown flag
 shutdown_flag = threading.Event()
