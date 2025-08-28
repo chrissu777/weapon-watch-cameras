@@ -8,6 +8,7 @@ import queue
 from process import threaded_process
 from load_onnx import load_onnx
 from gui_display import gui_display_worker
+from models.reid_model import SimpleReIDModel
 
 # Global shutdown flag
 shutdown_flag = threading.Event()
@@ -43,6 +44,10 @@ if __name__ == '__main__':
         })
     db = firestore.client()
 
+    # Initialize device
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    print(f"[INFO] Using device: {device}")
+
     # Load shared detection model
     print("\n[INFO] Loading ONNX detection model...")
     infer_weapon = load_onnx('models/detectionmodel.onnx')    
@@ -55,7 +60,18 @@ if __name__ == '__main__':
     print("[INFO] YOLO model loaded.")
 
     # Load shared ReID model
-    # print("\n[INFO] Loading ReID model...")
+    print("\n[INFO] Loading ReID model...")
+    reid_model = SimpleReIDModel(feature_dim=512)
+    reid_model.to(device).eval()
+    
+    # Initialize transform
+    reid_transform = transforms.Compose([
+        transforms.Resize((256, 128)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    print("[INFO] ReID model loaded.")
+
     # reid_model = torchreid.models.build_model(
     #     name='osnet_ibn_x1_0',
     #     num_classes=1000,
@@ -92,9 +108,6 @@ if __name__ == '__main__':
         # rtsp_url = f'finals_verification_vids/phase1-pistol-continuous/cam{i}_joey.mp4'
         cam_id = i
         cam_name = f'Cam-{i}'
-        
-        reid_model = 0
-        reid_transform = 0
 
         # Create GUI queue for this camera
         gui_queues[cam_id] = queue.Queue(maxsize=32)

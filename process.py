@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from detect import detect_worker
 from record import record_worker
-# from track import track_worker
+from track import track_worker
 from stream import RTSPStream
 
 import firebase_admin
@@ -156,20 +156,20 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
         args=(q_record, cam_id, cam_name),
         name=f"{cam_name}-recorder"
     )
-    # t_track = threading.Thread(
-    #     target=track_worker,
-    #     args=(q_track, cam_id, school, yolo.model, reid_model, reid_transform),
-    #     name=f"{cam_name}-tracker"
-    # )
+    t_track = threading.Thread(
+        target=track_worker,
+        args=(q_track, cam_id, school, yolo.model, reid_model, reid_transform, q_display),
+        name=f"{cam_name}-tracker"
+    )
 
     # Start threads
     t_read.start()
     t_detect.start()
     t_record.start()
-    # t_track.start()
+    t_track.start()
 
     # Join threads
     t_read.join()
     t_detect.join()
     t_record.join()
-    # t_track.join()
+    t_track.join()
