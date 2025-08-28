@@ -86,10 +86,13 @@ if __name__ == '__main__':
     gui_queues = {}  # Dictionary to store GUI queues by camera ID
     
     for cam in cams:
-        cam_id = cam.id
-        cam_name = cam.to_dict()['name']
-        rtsp_url = cam.to_dict()['video link']
-        
+        cam_data = cam.to_dict()
+
+        cam_name = cam_data['name']
+        cam_id = int(cam_name[-1])
+
+        rtsp_url = cam_data['video link']
+                
         reid_model = 0
         reid_transform = 0
 

@@ -31,20 +31,31 @@ class MultiCameraDisplay:
                 row = (i - 1) // grid_w
                 col = (i - 1) % grid_w
                 
-                try:
-                    cam_name, frame = self.latest_frames[i]
-                    # Resize frame to fit grid cell
-                    resized_frame = cv2.resize(frame, (cell_w, cell_h))
-                    
-                    # Add camera name overlay
-                    cv2.putText(resized_frame, cam_name, (10, 25), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    
-                    # Add timestamp
-                    timestamp = time.strftime("%H:%M:%S")
-                    cv2.putText(resized_frame, timestamp, (10, cell_h - 10), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                except:
+                if i in self.latest_frames:
+                    try:
+                        cam_name, frame = self.latest_frames[i]
+                        if frame is not None:
+                            # Resize frame to fit grid cell
+                            resized_frame = cv2.resize(frame, (cell_w, cell_h))
+                            
+                            # Add camera name overlay
+                            cv2.putText(resized_frame, cam_name, (10, 25), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            
+                            # Add timestamp
+                            timestamp = time.strftime("%H:%M:%S")
+                            cv2.putText(resized_frame, timestamp, (10, cell_h - 10), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        else:
+                            resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
+                            cv2.putText(resized_frame, f"{cam_name} (No Frame)", (10, cell_h//2), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                    except Exception as e:
+                        print(f"[WARNING] Error processing frame for camera {i}: {e}")
+                        resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
+                        cv2.putText(resized_frame, f"{cam_name} (Error)", (10, cell_h//2), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+                else:
                     resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
                     cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h//2), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
@@ -59,9 +70,7 @@ class MultiCameraDisplay:
 def gui_display_worker(gui_queues, shutdown_flag=None):
     """Main GUI display worker thread"""
     display = MultiCameraDisplay(len(gui_queues))
-    
-    print(f"[INFO] Starting GUI display worker with {len(gui_queues)} camera queues")
-    
+        
     try:
         while True:
             if shutdown_flag and shutdown_flag.is_set():

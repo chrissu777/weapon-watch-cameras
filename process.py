@@ -4,7 +4,6 @@ import queue
 import cv2
 import os
 
-from tqdm import tqdm
 
 from detect import detect_worker
 from record import record_worker
@@ -35,19 +34,44 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
 
     # watch = ref.on_snapshot(on_snapshot)
 
-    # print(f"Playing: {os.path.basename(rtsp_url)}")
     cap = cv2.VideoCapture(rtsp_url)
-    if not cap.isOpened():
-        print(f"Error: Cannot open {rtsp_url}")
+    
+    # Set RTSP connection parameters
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
+    cap.set(cv2.CAP_PROP_FPS, 15)  # Request specific FPS
+    
+    # Try to read a test frame to verify connection
+    connection_attempts = 0
+    max_attempts = 3
+    
+    while connection_attempts < max_attempts:
+        if cap.isOpened():
+            ret, test_frame = cap.read()
+            if ret and test_frame is not None:
+                print(f"\n[INFO] {cam_name}: Successfully connected to RTSP stream")
+                break
+            else:
+                print(f"[WARNING] {cam_name}: Connected but no frames received (attempt {connection_attempts + 1}/{max_attempts})")
+        else:
+            print(f"\n[WARNING] {cam_name}: Cannot open RTSP stream (attempt {connection_attempts + 1}/{max_attempts})")
+        
+        connection_attempts += 1
+        cap.release()
+        time.sleep(3)  # Wait before retry
+        cap = cv2.VideoCapture(rtsp_url)
+        # Reapply settings
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        cap.set(cv2.CAP_PROP_FPS, 15)
+    
+    if connection_attempts >= max_attempts:
+        print(f"[ERROR] {cam_name}: Failed to connect to RTSP stream after {max_attempts} attempts")
+        print(f"[INFO] {cam_name}: Check network connectivity and RTSP URL: {rtsp_url}")
+        cap.release()
         return
 
     # Get video properties
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_delay = 1.0 / fps if fps > 0 else 0.033  # fallback to ~30fps
-    
-    # print(f"[INFO] {cam_name}: {total_frames} frames at {fps:.2f} FPS")
-    pbar = tqdm(total=total_frames, desc=f"{os.path.basename(rtsp_url)} ({fps:.1f}fps)", unit='frame')
+    fps = cap.get(cv2.CAP_PROP_FPS)    
+    print(f"[INFO] {cam_name}: Live stream at {fps:.1f} FPS")
 
     i = 0
     try:
@@ -58,6 +82,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 
             ret, frame = cap.read()
             if not ret:
+                print(f"[WARNING] {cam_name}: Failed to read frame {i}")
                 break
 
             # Send every other frame to detection (every 2nd frame)
@@ -65,7 +90,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 try:
                     q_detect.put(frame.copy(), timeout=0.1)
                 except queue.Full:
-                    print('[WARNING] Detection queue full')
+                    print(f'[WARNING] Detection queue full for {cam_name}')
                     pass  # Skip detection if queue is full
             
             try:
@@ -81,15 +106,13 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                     pass
 
             i += 1
-            pbar.update(1)
             
-            # Use actual video frame rate for timing
-            time.sleep(frame_delay)
+            # Use actual video frame rate for timing (for live streams, can be minimal)
+            time.sleep(0.01)  # Minimal delay for live feeds
             
     except KeyboardInterrupt:
         print(f"\n[INFO] {cam_name} received keyboard interrupt")
     finally:
-        pbar.close()
         cap.release()
         
         # Signal end of video to all workers
@@ -133,10 +156,10 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
     # watch.unsubscribe()
 
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag=None, q_display=None):
-    # Thread-safe queues
-    q_detect = queue.Queue(maxsize=32)
-    q_record = queue.Queue(maxsize=32)
-    q_track = queue.Queue(maxsize=32)
+    # Thread-safe queues with larger buffers
+    q_detect = queue.Queue(maxsize=64)
+    q_record = queue.Queue(maxsize=64) 
+    q_track = queue.Queue(maxsize=64)
     if q_display is None:
         q_display = queue.Queue(maxsize=32)
 
