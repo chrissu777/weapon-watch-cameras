@@ -21,7 +21,7 @@ class MultiCameraDisplay:
         """Create a 2x3 grid display for 6 cameras"""
         # Grid configuration for 6 cameras (2 rows, 3 columns)
         grid_h, grid_w = 2, 3
-        cell_h, cell_w = 360, 480  # Resize each camera view
+        cell_h, cell_w = 450, 600  # Resize each camera view
          
         # Create empty grid
         grid_image = np.zeros((grid_h * cell_h, grid_w * cell_w, 3), dtype=np.uint8)
