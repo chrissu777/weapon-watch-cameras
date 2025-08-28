@@ -15,7 +15,7 @@ class MultiCameraDisplay:
     def update_frame(self, cam_id, cam_name, frame):
         """Update the latest frame for a specific camera"""
         with self.frame_lock:
-            self.latest_frames[cam_id] = (cam_name, frame)
+            self.latest_frames[int(cam_name[-1])] = (cam_name, frame)
     
     def create_grid_display(self):
         """Create a 2x3 grid display for 6 cameras"""
@@ -38,32 +38,33 @@ class MultiCameraDisplay:
                             # Resize frame to fit grid cell
                             resized_frame = cv2.resize(frame, (cell_w, cell_h))
                             
-                            # Add camera name overlay
-                            cv2.putText(resized_frame, cam_name, (10, 25), 
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                            
-                            # Add timestamp
+                            # Add cam name and timestamp
                             timestamp = time.strftime("%H:%M:%S")
-                            cv2.putText(resized_frame, timestamp, (10, cell_h - 10), 
+                            cv2.putText(resized_frame, f"{cam_name}, {timestamp}", (10, cell_h - 10), 
                                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         else:
                             resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
-                            cv2.putText(resized_frame, f"{cam_name} (No Frame)", (10, cell_h//2), 
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                            cv2.putText(resized_frame, f"{cam_name} (No Frame)", (10, cell_h - 10), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                     except Exception as e:
                         print(f"[WARNING] Error processing frame for camera {i}: {e}")
                         resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
-                        cv2.putText(resized_frame, f"{cam_name} (Error)", (10, cell_h//2), 
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+                        cv2.putText(resized_frame, f"{cam_name} (Error)", (10, cell_h - 10), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                 else:
                     resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
-                    cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h//2), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h - 10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                 
                 # Place in grid
                 y1, y2 = row * cell_h, (row + 1) * cell_h
                 x1, x2 = col * cell_w, (col + 1) * cell_w
                 grid_image[y1:y2, x1:x2] = resized_frame
+                
+                # Add bounding box around each camera feed
+                border_color = (100, 100, 100)  # Gray border
+                border_thickness = 2
+                cv2.rectangle(grid_image, (x1, y1), (x2-1, y2-1), border_color, border_thickness)
         
         return grid_image
 
@@ -77,13 +78,11 @@ def gui_display_worker(gui_queues, shutdown_flag=None):
                 break
                 
             # Check all GUI queues for new frames
-            frames_updated = False
             for cam_id, q_gui in gui_queues.items():
                 try:
                     while True:  # Process all available frames
                         cam_id_recv, cam_name, frame = q_gui.get_nowait()
                         display.update_frame(cam_id_recv, cam_name, frame)
-                        frames_updated = True
                 except queue.Empty:
                     pass  # No frames available for this camera
             
