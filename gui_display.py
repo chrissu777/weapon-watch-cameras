@@ -27,9 +27,10 @@ class MultiCameraDisplay:
         grid_image = np.zeros((grid_h * cell_h, grid_w * cell_w, 3), dtype=np.uint8)
         
         with self.frame_lock:
-            for i in range(1, self.num_cameras + 1):
-                row = (i - 1) // grid_w
-                col = (i - 1) % grid_w
+            camera_list = [1,6,3,4,5]
+            for idx, i in enumerate(camera_list):
+                row = idx // grid_w
+                col = idx % grid_w
                 
                 if i in self.latest_frames:
                     try:
@@ -53,7 +54,7 @@ class MultiCameraDisplay:
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                 else:
                     resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
-                    cv2.putText(resized_frame, f"Cam-{i} (No Signal)", (10, cell_h - 10), 
+                    cv2.putText(resized_frame, f"Cam-{i}: No Signal", (10, cell_h - 10), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
                 
                 # Place in grid
