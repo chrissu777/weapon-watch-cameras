@@ -52,10 +52,8 @@ def encrypt_and_upload(file_path, s3_key, cam_name):
         # Upload encrypted data to S3
         s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=bytes(ciphertext))
         
-        print(f"\nENCRYPTED FILE UPLOADED SUCCESSFULLY: {s3_key}")
-        
         formatted_time = datetime.now().strftime("%H:%M:%S")
-        print(f"UPLOADED AT {formatted_time} FOR {cam_name}")
-
+        print(f"[INFO] {cam_name}: Encrypted file uploaded successfully at {formatted_time}")
+        
     except Exception as e:
-        print(f"Error: {str(e)}")  # Print error if encryption or upload fails
+        print(f"[ERROR] {cam_name}: {str(e)}")

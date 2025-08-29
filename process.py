@@ -4,35 +4,31 @@ import queue
 import cv2
 import os
 
-
 from detect import detect_worker
 from record import record_worker
 # from track import track_worker
-from stream import RTSPStream
 
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Global flag to control shooter tracking logic
 ACTIVE_EVENT = False
 
 def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, school, shutdown_flag=None):
     global ACTIVE_EVENT
 
-    # if not firebase_admin._apps:
-    #     cred = credentials.Certificate("serviceAccountKey.json")
-    #     firebase_admin.initialize_app(cred, {
-    #         "storageBucket": "weapon-watch.firebasestorage.app"
-    #     })
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
 
-    # db = firestore.client()
-    # ref = db.collection('schools').document(school)
+    db = firestore.client()
+    ref = db.collection('schools').document(school)
 
-    # def on_snapshot(docs, changes, ts):
-    #     ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
-    #     # print(f"[{cam_name}] ACTIVE EVENT: {ACTIVE_EVENT}")
+    def on_snapshot(docs, changes, ts):
+        ACTIVE_EVENT = docs[0].to_dict().get('Active Event', False)
 
-    # watch = ref.on_snapshot(on_snapshot)
+    watch = ref.on_snapshot(on_snapshot)
 
     cap = cv2.VideoCapture(rtsp_url)
     
@@ -65,7 +61,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
     
     if connection_attempts >= max_attempts:
         print(f"[ERROR] {cam_name}: Failed to connect to RTSP stream after {max_attempts} attempts")
-        print(f"[INFO] {cam_name}: Check network connectivity and RTSP URL: {rtsp_url}")
+        print(f"[INFO] {cam_name}: Check network connectivity and RTSP URL: {rtsp_url}\n")
         cap.release()
         return
 
@@ -85,23 +81,23 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 print(f"[WARNING] {cam_name}: Failed to read frame {i}")
                 break
 
-            # Send every frame to detection
             try:
                 q_detect.put(frame.copy(), timeout=0.1)
             except queue.Full:
                 print(f'[WARNING] Detection queue full for {cam_name}')
-                pass  # Skip detection if queue is full
+                pass
             
             try:
                 q_record.put(frame, timeout=0.05)
             except queue.Full:
-                # Skip recording frame if queue is full
+                print(f'[WARNING] Recording queue full for {cam_name}')
                 pass
                 
             if ACTIVE_EVENT:
                 try:
                     q_track.put(frame, timeout=0.05)
                 except queue.Full:
+                    print(f'[WARNING] Tracking queue full for {cam_name}')
                     pass
 
             i += 1
@@ -130,39 +126,14 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
         except queue.Full:
             pass
 
-
-    # stream = RTSPStream(rtsp_url)
-    # INVALID_FRAME_COUNT = 0
-
-    # while True:
-    #     frame = stream.read()
-    #     if frame is not None:
-    #         q_detect.put(frame)
-    #         q_record.put(frame)
-    #         if ACTIVE_EVENT:
-    #             q_track.put(frame)
-    #         INVALID_FRAME_COUNT = 0
-    #     else:
-    #         print(f"[{cam_name}] Invalid frame received.")
-    #         INVALID_FRAME_COUNT += 1
-    #         time.sleep(0.1)
-    #         if INVALID_FRAME_COUNT >= 10:
-    #             break``
-    #     time.sleep(0.2)
-
-    # print(f"\n[{cam_name}] Too many invalid frames. Stopping stream.\n")
-    # stream.stop()
-    # watch.unsubscribe()
-
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag=None, q_display=None):
-    # Thread-safe queues with larger buffers
     q_detect = queue.Queue(maxsize=64)
     q_record = queue.Queue(maxsize=64) 
     q_track = queue.Queue(maxsize=64)
+    
     if q_display is None:
         q_display = queue.Queue(maxsize=32)
 
-    # Create threads
     t_read = threading.Thread(
         target=frame_reader,
         args=(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, school, shutdown_flag),
@@ -184,13 +155,11 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     #     name=f"{cam_name}-tracker"
     # )
 
-    # Start threads
     t_read.start()
     t_detect.start()
     t_record.start()
     # t_track.start()
 
-    # Join threads
     t_read.join()
     t_detect.join()
     t_record.join()

@@ -17,7 +17,6 @@ def load_onnx(model_path):
     input_name = ort_session.get_inputs()[0].name
     output_names = [output.name for output in ort_session.get_outputs()]
 
-    print(f"[INFO] Active providers: {ort_session.get_providers()}")
     if 'CUDAExecutionProvider' in ort_session.get_providers():
         print("[INFO] ✓ ONNX model will use GPU")
     else:

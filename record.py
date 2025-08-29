@@ -28,7 +28,7 @@ def record_worker(q_record, cam_id, cam_name, buffer_size=100):
 
     buf = deque(maxlen=buffer_size)
     writer = None
-    s3_key = f"University_of_Maryland_College_Park*163286*{cam_id}*"
+    s3_key = f"UMD*163286*{cam_id}*{cam_name}*"
     save_file = "recordings/" + s3_key
     
     if not os.path.exists('recordings'):
@@ -52,7 +52,7 @@ def record_worker(q_record, cam_id, cam_name, buffer_size=100):
                 buf.clear()
                 
                 formatted_time = datetime.now().strftime("%H:%M:%S")
-                print(f"RECORDING STARTED AT {formatted_time} FOR {cam_name}")
+                print(f"[INFO] {cam_name}: Recording started at {formatted_time}")
 
             if ACTIVE and writer is not None:
                 writer.write(frame)
@@ -60,8 +60,6 @@ def record_worker(q_record, cam_id, cam_name, buffer_size=100):
             if not ACTIVE and writer is not None:                
                 writer.release()
                 writer = None
-
-                print("ATTEMPTING TO ENCRYPT AND UPLOAD")
 
                 encrypt_upload.encrypt_and_upload(save_file, s3_key, cam_name)
                 

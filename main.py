@@ -23,7 +23,6 @@ from firebase_admin import credentials, firestore
 def signal_handler(sig, frame):
     print('\n\n[INFO] Ctrl+C pressed. Shutting down...')
     shutdown_flag.set()
-    # Don't call sys.exit(0) here - let main thread handle cleanup
 
 if __name__ == '__main__':
     # Set up signal handler for graceful shutdown
