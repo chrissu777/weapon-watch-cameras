@@ -69,7 +69,6 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
     fps = cap.get(cv2.CAP_PROP_FPS)    
     print(f"[INFO] {cam_name}: Live stream at {fps:.1f} FPS")
 
-    i = 0
     try:
         while True:
             # Check for shutdown signal
@@ -99,11 +98,8 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 except queue.Full:
                     print(f'[WARNING] Tracking queue full for {cam_name}')
                     pass
-
-            i += 1
             
-            # Use actual video frame rate for timing (for live streams, can be minimal)
-            time.sleep(0.01)  # Minimal delay for live feeds
+            time.sleep(0.01)
             
     except KeyboardInterrupt:
         print(f"\n[INFO] {cam_name} received keyboard interrupt")
