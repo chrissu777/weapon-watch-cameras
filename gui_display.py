@@ -40,7 +40,7 @@ class MultiCameraDisplay:
                             
                             # Add cam name and timestamp
                             timestamp = time.strftime("%H:%M:%S")
-                            cv2.putText(resized_frame, f"{cam_name}, {timestamp}", (10, cell_h - 10), 
+                            cv2.putText(resized_frame, f"{cam_name}: {timestamp}", (10, cell_h - 10), 
                                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         else:
                             resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)

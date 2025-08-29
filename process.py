@@ -85,13 +85,12 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 print(f"[WARNING] {cam_name}: Failed to read frame {i}")
                 break
 
-            # Send every other frame to detection (every 2nd frame)
-            if i % 2 == 0:
-                try:
-                    q_detect.put(frame.copy(), timeout=0.1)
-                except queue.Full:
-                    print(f'[WARNING] Detection queue full for {cam_name}')
-                    pass  # Skip detection if queue is full
+            # Send every frame to detection
+            try:
+                q_detect.put(frame.copy(), timeout=0.1)
+            except queue.Full:
+                print(f'[WARNING] Detection queue full for {cam_name}')
+                pass  # Skip detection if queue is full
             
             try:
                 q_record.put(frame, timeout=0.05)
