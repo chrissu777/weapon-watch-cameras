@@ -71,13 +71,12 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
 
     try:
         while True:
-            # Check for shutdown signal
             if shutdown_flag and shutdown_flag.is_set():
                 break
                 
             ret, frame = cap.read()
             if not ret:
-                print(f"[WARNING] {cam_name}: Failed to read frame {i}")
+                print(f"[WARNING] {cam_name}: Failed to read frame")
                 break
 
             try:
