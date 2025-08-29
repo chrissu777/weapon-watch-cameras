@@ -50,7 +50,7 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                 frame_count += 1
                 
                 # Process every frame that comes to detection queue
-                detection_result = detect(frame, cam_name, infer_weapon, output_dir, True)
+                detection_result = detect(frame, cam_name, infer_weapon, output_dir)
                 
                 # Create annotated frame for GUI display
                 if q_display is not None and detection_result is not None:
