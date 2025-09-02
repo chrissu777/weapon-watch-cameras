@@ -11,7 +11,7 @@ from firebase_admin import credentials, firestore
 
 ACTIVE = False 
 
-def track_worker(q_track, cam_id, school, model, reid_model, reid_transform, q_display=None):
+def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform, q_display=None):
     # Firebase init
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
@@ -51,8 +51,11 @@ def track_worker(q_track, cam_id, school, model, reid_model, reid_transform, q_d
                 best_match = entry['id']
         if best_match:
             entry = next(e for e in embeddings if e['id'] == best_match)
-            entry['embedding'] = (np.array(entry['embedding']) * entry['count'] + embedding) / (entry['count'] + 1)
+            entry['embedding'] = ((np.array(entry['embedding']) * entry['count'] + embedding) / (entry['count'] + 1)).tolist()
             entry['count'] += 1
+            school_ref.update({
+                "embeddings": embeddings
+            })
             return best_match
         elif create_new:
             if len(embeddings) > 1000:
@@ -69,17 +72,22 @@ def track_worker(q_track, cam_id, school, model, reid_model, reid_transform, q_d
 
     cam_ref = school_ref.collection("cameras").document(cam_id)
 
+    frame_count = 0
     try:
         while True:
             frame = q_track.get()  # blocks until a frame arrives
+            
+            frame_count += 1
+            
+            # Process every other frame to match detection rate
+            if frame_count % 2 != 0:
+                continue
 
             doc = school_ref.get().to_dict()
             detected_id = doc.get("detected_cam_id", "")
 
             if detected_id == "":
-                print("[WARNING] No detected cam id")
                 continue
-            print(f"[INFO] Detected cam id: {detected_id}")
             
             embeddings = doc.get("embeddings", [])
             embeddings = [dict(e) for e in embeddings]  # ensure mutable
@@ -87,7 +95,7 @@ def track_worker(q_track, cam_id, school, model, reid_model, reid_transform, q_d
             cam_ref.update({"shooter_detected": False})
 
             # Track all people in the frame for display
-            person_boxes = model(frame, verbose=False)[0].boxes
+            person_boxes = yolo_model(frame, verbose=False)[0].boxes
             tracking_results = []  # Store tracking results for GUI
 
             if detected_id == cam_id:

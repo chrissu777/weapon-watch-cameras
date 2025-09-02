@@ -91,12 +91,15 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 print(f'[WARNING] Recording queue full for {cam_name}')
                 pass
                 
-            if ACTIVE_EVENT:
+            try:
+                q_track.put(frame, timeout=0.01)
+            except queue.Full:
+                # Drop frames when tracking can't keep up - tracking is less critical than detection
                 try:
-                    q_track.put(frame, timeout=0.1)
-                except queue.Full:
-                    print(f'[WARNING] Tracking queue full for {cam_name}')
-                    pass
+                    q_track.get_nowait()  # Remove oldest frame
+                    q_track.put(frame, timeout=0.01)  # Add current frame
+                except queue.Empty:
+                    pass  # Queue was somehow empty, skip this frame
             
             time.sleep(0.01)
             
@@ -146,7 +149,7 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     )
     t_track = threading.Thread(
         target=track_worker,
-        args=(q_track, cam_id, school, yolo.model, reid_model, reid_transform),
+        args=(q_track, cam_id, school, yolo, reid_model, reid_transform),
         name=f"{cam_name}-tracker"
     )
 
