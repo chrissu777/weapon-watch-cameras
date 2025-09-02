@@ -15,9 +15,9 @@ SOURCES = [
     # f'finals_verification_vids/phase1-pistol-continuous/cam3_joey.mp4',
     # f'finals_verification_vids/phase1-pistol-continuous/cam4_joey.mp4',
     # f'finals_verification_vids/phase1-pistol-continuous/cam5_joey.mp4',
-    "rtsp://192.168.1.111:554/profile2/media.smp",
-    "rtsp://192.168.1.151:554/profile2/media.smp",
-    "rtsp://192.168.1.114:554/profile2/media.smp",
+    # "rtsp://192.168.1.111:554/profile2/media.smp",
+    # "rtsp://192.168.1.151:554/profile2/media.smp",
+    # "rtsp://192.168.1.114:554/profile2/media.smp",
 ]
 
 # Load your Roboflow model once
@@ -30,7 +30,7 @@ model = get_model(model_id=ROBOFLOW_MODEL_ID, api_key=ROBOFLOW_API_KEY)
 print("✅ Model ready")
 
 CONF_TH = 0.6
-IOU_TH = 0.5
+IOU_TH = 0.8
 
 ###############################################################################
 # Utilities
@@ -43,11 +43,11 @@ def draw_boxes(frame, preds):
         x2 = int(p.x + p.width/2)
         y2 = int(p.y + p.height/2)
 
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0,255,255), 2)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (38, 14, 194), 2)
         cv2.putText(frame, f"{p.class_name}:{p.confidence:.2f}",
                     (x1, max(0, y1-5)),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0,255,255), 2)
+                    0.5, (38, 14, 194), 2)
     return frame
 
 
