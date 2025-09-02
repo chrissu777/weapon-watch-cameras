@@ -34,7 +34,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
     
     # Set RTSP connection parameters
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
-    cap.set(cv2.CAP_PROP_FPS, 15)  # Request specific FPS
+    cap.set(cv2.CAP_PROP_FPS, 30)  # Request specific FPS
     
     # Try to read a test frame to verify connection
     connection_attempts = 0
@@ -57,7 +57,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
         cap = cv2.VideoCapture(rtsp_url)
         # Reapply settings
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        cap.set(cv2.CAP_PROP_FPS, 15)
+        cap.set(cv2.CAP_PROP_FPS, 30)
     
     if connection_attempts >= max_attempts:
         print(f"[ERROR] {cam_name}: Failed to connect to RTSP stream after {max_attempts} attempts")

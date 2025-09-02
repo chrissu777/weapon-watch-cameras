@@ -13,7 +13,7 @@ from cloud import encrypt_upload
 
 ACTIVE = False
 
-def record_worker(q_record, cam_id, cam_name, buffer_minutes=3):
+def record_worker(q_record, cam_id, cam_name, buffer_minutes=1):
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
@@ -48,7 +48,7 @@ def record_worker(q_record, cam_id, cam_name, buffer_minutes=3):
             if len(frame_timestamps) > 10:
                 time_diff = frame_timestamps[-1] - frame_timestamps[0]
                 actual_fps = (len(frame_timestamps) - 1) / time_diff
-                target_buffer_size = int(actual_fps * 60 * buffer_minutes)  # 3 minutes worth
+                target_buffer_size = int(actual_fps * 60 * buffer_minutes)
                 
                 # Resize buffer if needed
                 if rolling_buffer.maxlen != target_buffer_size:
@@ -62,7 +62,7 @@ def record_worker(q_record, cam_id, cam_name, buffer_minutes=3):
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 h, w = frame.shape[:2]
                 
-                # Use measured FPS or default to 15 if not enough data
+                # Use measured FPS or default to 30 if not enough data (matches camera stream)
                 video_fps = actual_fps if len(frame_timestamps) > 10 else 30.0
                 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -71,12 +71,12 @@ def record_worker(q_record, cam_id, cam_name, buffer_minutes=3):
                 
                 writer = cv2.VideoWriter(save_file, fourcc, video_fps, (w, h))
                 
-                # Write the 3-minute buffer first (pre-event footage)
+                # Write the buffer first (pre-event footage)
                 for buffered_frame in rolling_buffer:
                     writer.write(buffered_frame)
                 
                 formatted_time = datetime.now().strftime("%H:%M:%S")
-                print(f"[INFO] {cam_name}: Recording started at {formatted_time} (including 3min pre-buffer)")
+                print(f"[INFO] {cam_name}: Recording started at {formatted_time}")
 
             if ACTIVE and writer is not None:
                 writer.write(frame)
