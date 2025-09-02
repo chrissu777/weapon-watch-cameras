@@ -10,8 +10,8 @@
 
             "detected": false,
             
-            "latitude": "38.990388",
-            "longitude": "-76.938346"
+            "latitude": 38.990388,
+            "longitude": -76.938346
         },
         {
             "name": "Camera 3",
@@ -23,8 +23,8 @@
 
             "detected": false,
             
-            "latitude": "38.990417",
-            "longitude": "-76.938283"
+            "latitude": 38.990417,
+            "longitude": -76.938283
         },
         {
             "name": "Camera 4",
@@ -36,8 +36,8 @@
 
             "detected": false,
             
-            "latitude": "38.990414",
-            "longitude": "-76.938306"
+            "latitude": 38.990414,
+            "longitude": -76.938306
         },
         {
             "name": "Camera 5",
@@ -49,8 +49,8 @@
 
             "detected": false,
             
-            "latitude": "38.990414",
-            "longitude": "-76.938335"
+            "latitude": 38.990414,
+            "longitude": -76.938335
         },
         {
             "name": "Camera 6",
@@ -62,8 +62,8 @@
 
             "detected": false,
             
-            "latitude": "38.990402",
-            "longitude": "-76.938375"
+            "latitude": 38.990402,
+            "longitude": -76.938375
         }
         ]
 }
