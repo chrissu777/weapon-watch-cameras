@@ -149,7 +149,7 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     )
     t_track = threading.Thread(
         target=track_worker,
-        args=(q_track, cam_id, school, yolo, reid_model, reid_transform),
+        args=(q_track, cam_id, school, yolo, reid_model, reid_transform, q_display, cam_name),
         name=f"{cam_name}-tracker"
     )
 

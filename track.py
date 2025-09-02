@@ -11,7 +11,7 @@ from firebase_admin import credentials, firestore
 
 ACTIVE = False 
 
-def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform, q_display=None):
+def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform, q_display=None, cam_name=None):
     # Firebase init
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
@@ -156,9 +156,10 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
                             })
 
             # Send tracking results to GUI if queue is available
-            if q_display and tracking_results:
+            if q_display and tracking_results and cam_name:
                 try:
-                    q_display.put(('tracking', cam_id, tracking_results), timeout=0.01)
+                    gui_cam_id = int(cam_name[-1])  # Extract number from "Camera X"
+                    q_display.put(('tracking', gui_cam_id, tracking_results), timeout=0.01)
                 except queue.Full:
                     pass  # Skip if queue is full
 
