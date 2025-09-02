@@ -1,7 +1,20 @@
 import queue
 import utils as utils
 
-def detect(frame, cam_name, infer_weapon, output_dir, grayscale=False):
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=False):
+    #Firebase init
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    
+    db = firestore.client()
+    school_ref = db.collection('schools').document(school)
+    cam_ref = school_ref.collection("cameras").document(cam_id)
+
     # Preprocess frame
     image_data = utils.preprocess_frame(frame, grayscale)
     if image_data is None:
@@ -24,7 +37,11 @@ def detect(frame, cam_name, infer_weapon, output_dir, grayscale=False):
     boxes_np, scores_np, classes_np, valid_detections = utils.apply_nms(boxes, pred_conf)
     
     # Process and save detections
-    utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
+    pred_bbox = utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
+
+    if pred_bbox is not None:
+        school_ref.update({'detected_cam_id': cam_id})
+        cam_ref.update({"bboxes": pred_bbox.flatten().tolist()})
     
     # Return detection data for GUI annotation
     return boxes_np, scores_np, classes_np, valid_detections
@@ -51,7 +68,7 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                 
                 # Process every other frame to reduce computational load
                 if frame_count % 2 == 0:
-                    detection_result = detect(frame, cam_name, infer_weapon, output_dir)
+                    detection_result = detect(frame, cam_name, cam_id, school, infer_weapon, output_dir)
                 else:
                     detection_result = None  # Skip detection for this frame
                 

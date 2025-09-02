@@ -190,3 +190,6 @@ def process_detections(boxes_np, scores_np, classes_np, valid_detections, frame,
         frame, score = draw_bbox(frame, pred_bbox, info=False)
         output_path = f"{output_dir}/{cam_name}_{score}.jpg"
         cv2.imwrite(output_path, frame)
+        return bboxes
+    else:
+        return None

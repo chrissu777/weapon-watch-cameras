@@ -16,6 +16,7 @@ import torch
 # import torchreid
 from torchvision import transforms
 from ultralytics import YOLO
+from reid_model import SimpleReIDModel
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -55,22 +56,17 @@ if __name__ == '__main__':
     print("[INFO] YOLO model loaded.")
 
     # Load shared ReID model
-    # print("\n[INFO] Loading ReID model...")
-    # reid_model = torchreid.models.build_model(
-    #     name='osnet_ibn_x1_0',
-    #     num_classes=1000,
-    #     loss='softmax',
-    #     pretrained=True
-    # )
-    # device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
-    # reid_model.to(device).eval()
-    # print(f"[INFO] ReID model loaded on {device}\n")
+    print("\n[INFO] Loading ReID model...")
+    reid_model = SimpleReIDModel(feature_dim=512)
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    reid_model.to(device).eval()
+    print(f"[INFO] ReID model loaded on {device}\n")
 
-    # reid_transform = transforms.Compose([
-    #     transforms.Resize((256, 128)),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    # ])
+    reid_transform = transforms.Compose([
+        transforms.Resize((256, 128)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
 
     output_dir = 'testing/outputs/detected'
     if os.path.exists(output_dir):
@@ -89,9 +85,6 @@ if __name__ == '__main__':
         cam_name = cam.to_dict()['name']
         rtsp_url = cam.to_dict()['video link']
                 
-        reid_model = 0
-        reid_transform = 0
-
         # Create GUI queue for this camera
         gui_queues[cam_id] = queue.Queue(maxsize=32)
 

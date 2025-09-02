@@ -6,7 +6,7 @@ import os
 
 from detect import detect_worker
 from record import record_worker
-# from track import track_worker
+from track import track_worker
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -86,14 +86,14 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 pass
             
             try:
-                q_record.put(frame, timeout=0.05)
+                q_record.put(frame, timeout=0.1)
             except queue.Full:
                 print(f'[WARNING] Recording queue full for {cam_name}')
                 pass
                 
             if ACTIVE_EVENT:
                 try:
-                    q_track.put(frame, timeout=0.05)
+                    q_track.put(frame, timeout=0.1)
                 except queue.Full:
                     print(f'[WARNING] Tracking queue full for {cam_name}')
                     pass
@@ -144,18 +144,18 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
         args=(q_record, cam_id, cam_name),
         name=f"{cam_name}-recorder"
     )
-    # t_track = threading.Thread(
-    #     target=track_worker,
-    #     args=(q_track, cam_id, school, yolo.model, reid_model, reid_transform),
-    #     name=f"{cam_name}-tracker"
-    # )
+    t_track = threading.Thread(
+        target=track_worker,
+        args=(q_track, cam_id, school, yolo.model, reid_model, reid_transform),
+        name=f"{cam_name}-tracker"
+    )
 
     t_read.start()
     t_detect.start()
     t_record.start()
-    # t_track.start()
+    t_track.start()
 
     t_read.join()
     t_detect.join()
     t_record.join()
-    # t_track.join()
+    t_track.join()
