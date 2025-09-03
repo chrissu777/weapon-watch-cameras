@@ -29,7 +29,11 @@ if __name__ == '__main__':
     # Set up signal handler for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     
+    # Model configuration
+    USE_RTDETR = True  # Set to False to use ONNX model
+    
     print(f"[INFO] CUDA available: {torch.cuda.is_available()}")
+    print(f"[INFO] Model type: {'RT-DETR' if USE_RTDETR else 'ONNX'}")
 
     # Suppress logs
     os.environ["GRPC_VERBOSITY"] = "ERROR"
@@ -45,9 +49,15 @@ if __name__ == '__main__':
     cams = db.collection('schools').document('UMD').collection('cameras').stream()
 
     # Load shared detection model
-    print("\n[INFO] Loading ONNX detection model...")
-    infer_weapon = load_onnx('models/detectionmodel.onnx')    
-    print("[INFO] Detection model loaded and ready")
+    if USE_RTDETR:
+        print("\n[INFO] Loading Roboflow RT-DETR detection model...")
+        from ultralytics import RTDETR
+        infer_weapon = RTDETR('models/roboflow_weights.pt')
+        print("[INFO] Roboflow RT-DETR model loaded and ready")
+    else:
+        print("\n[INFO] Loading ONNX detection model...")
+        infer_weapon = load_onnx('models/detectionmodel.onnx')    
+        print("[INFO] ONNX detection model loaded and ready")
 
     # Load shared YOLO model
     print("\n[INFO] Loading YOLO model...")
@@ -90,7 +100,7 @@ if __name__ == '__main__':
 
         t = threading.Thread(
             target=threaded_process,
-            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag, gui_queues[cam_id]),
+            args=(rtsp_url, cam_id, cam_name, 'UMD', infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag, gui_queues[cam_id], USE_RTDETR),
             name=f"{cam_name}-main-thread",
             daemon=False  # Don't kill threads on main exit - let them finish naturally
         )

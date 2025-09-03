@@ -14,7 +14,7 @@ def format_boxes(bboxes, image_height, image_width):
         box[0], box[1], box[2], box[3] = xmin, ymin, xmax, ymax
     return bboxes
 
-def draw_bbox(image, bboxes, info = False, show_label=True, classes=['Gun', 'Knife', 'Rifle']):
+def draw_bbox(image, bboxes, info = False, show_label=True, classes=['Rifle', 'Pistol']):
     num_classes = len(classes)
     image_h, image_w, _ = image.shape
     score = 0.0  
@@ -29,9 +29,7 @@ def draw_bbox(image, bboxes, info = False, show_label=True, classes=['Gun', 'Kni
         score = out_scores[i]
         
         class_ind = int(out_classes[i])
-        class_name = classes[class_ind]
-        if class_name == 'Rifle':
-            class_name = 'Gun'
+        class_name = classes[class_ind] if class_ind < len(classes) else 'Unknown'
                 
         if class_name not in classes:
             continue
@@ -84,6 +82,35 @@ def prepare_batch_data(image_data, infer_weapon):
         batch_data = image_data
     
     return batch_data
+
+def extract_rtdetr_predictions(results):
+    """Extract predictions from Ultralytics RT-DETR results"""
+    try:
+        if len(results) == 0 or results[0].boxes is None:
+            print("[INFO] No detections from RT-DETR model")
+            return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
+        
+        # Get detection results from first image in batch
+        result = results[0]
+        boxes = result.boxes
+        
+        if boxes is None or len(boxes) == 0:
+            print("[INFO] No boxes detected by RT-DETR")
+            return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
+        
+        # Extract data (already in correct format from Ultralytics)
+        boxes_np = boxes.xyxy.cpu().numpy()  # [N, 4] - already in xyxy format
+        scores_np = boxes.conf.cpu().numpy()  # [N]
+        classes_np = boxes.cls.cpu().numpy()  # [N]
+        
+        valid_detections = len(boxes_np)
+        
+        print(f"[DEBUG] RT-DETR found {valid_detections} detections")
+        return boxes_np, scores_np, classes_np, valid_detections
+        
+    except Exception as e:
+        print(f"[ERROR] Error extracting RT-DETR predictions: {e}")
+        return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
 
 def extract_predictions(pred_bbox):
     """Extract and convert predictions to numpy arrays"""
@@ -179,16 +206,22 @@ def apply_nms(boxes, pred_conf, score_threshold=0.25, iou_threshold=0.5, max_det
 
 def process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir):
     """Process valid detections and save results"""
-    # Filter out class 1.0 if present (assuming this is a background/ignore class)
-    if len(classes_np) > 0 and 1.0 in classes_np:
-        valid_detections = 0
-    
     if valid_detections > 0:
         original_h, original_w, _ = frame.shape
-        bboxes = format_boxes(boxes_np[:valid_detections], original_h, original_w)
-        pred_bbox = [bboxes, scores_np, classes_np, valid_detections]
+        
+        # For RT-DETR, boxes are already in pixel coordinates, no need to format
+        # For ONNX model, boxes need formatting from normalized coordinates
+        # We can detect this by checking if coordinates are > 1.0
+        if np.any(boxes_np > 1.0):
+            # Already in pixel coordinates (RT-DETR)
+            bboxes = boxes_np[:valid_detections]
+        else:
+            # Normalized coordinates (ONNX) - need formatting
+            bboxes = format_boxes(boxes_np[:valid_detections].copy(), original_h, original_w)
+        
+        pred_bbox = [bboxes, scores_np[:valid_detections], classes_np[:valid_detections], valid_detections]
         frame, score = draw_bbox(frame, pred_bbox, info=False)
-        output_path = f"{output_dir}/{cam_name}_{score}.jpg"
+        output_path = f"{output_dir}/{cam_name}_{score:.2f}.jpg"
         cv2.imwrite(output_path, frame)
         return bboxes
     else:

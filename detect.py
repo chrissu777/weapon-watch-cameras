@@ -5,7 +5,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=False):
+def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=False, use_rtdetr=False):
     #Firebase init
     if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
@@ -15,29 +15,45 @@ def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=
     school_ref = db.collection('schools').document(school)
     cam_ref = school_ref.collection("cameras").document(cam_id)
 
-    # Preprocess frame
-    image_data = utils.preprocess_frame(frame, grayscale)
-    if image_data is None:
-        return None  # Skip this frame if preprocessing failed
-    
-    # Prepare batch data for model
-    batch_data = utils.prepare_batch_data(image_data, infer_weapon)
-    
-    # Run inference with error handling
-    try:
-        pred_bbox = infer_weapon(batch_data)
-    except Exception as e:
-        print(f"[ERROR] Inference failed for {cam_name}: {e}")
-        return None  # Skip this frame
-    
-    # Extract predictions
-    boxes, pred_conf = utils.extract_predictions(pred_bbox)
-    
-    # Apply NMS to filter predictions
-    boxes_np, scores_np, classes_np, valid_detections = utils.apply_nms(boxes, pred_conf)
-    
-    # Process and save detections
-    pred_bbox = utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
+    if use_rtdetr:
+        # RT-DETR model inference (Ultralytics format)
+        try:
+            results = infer_weapon(frame, verbose=False)
+            
+            # Extract detections from Ultralytics results
+            boxes_np, scores_np, classes_np, valid_detections = utils.extract_rtdetr_predictions(results)
+            
+            # Process and save detections
+            pred_bbox = utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
+            
+        except Exception as e:
+            print(f"[ERROR] RT-DETR inference failed for {cam_name}: {e}")
+            return None
+    else:
+        # Original ONNX model inference
+        # Preprocess frame
+        image_data = utils.preprocess_frame(frame, grayscale)
+        if image_data is None:
+            return None  # Skip this frame if preprocessing failed
+        
+        # Prepare batch data for model
+        batch_data = utils.prepare_batch_data(image_data, infer_weapon)
+        
+        # Run inference with error handling
+        try:
+            pred_bbox = infer_weapon(batch_data)
+        except Exception as e:
+            print(f"[ERROR] Inference failed for {cam_name}: {e}")
+            return None  # Skip this frame
+        
+        # Extract predictions
+        boxes, pred_conf = utils.extract_predictions(pred_bbox)
+        
+        # Apply NMS to filter predictions
+        boxes_np, scores_np, classes_np, valid_detections = utils.apply_nms(boxes, pred_conf)
+        
+        # Process and save detections
+        pred_bbox = utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
 
     if pred_bbox is not None:
         school_ref.update({'detected_cam_id': cam_id})
@@ -46,7 +62,7 @@ def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=
     # Return detection data for GUI annotation
     return boxes_np, scores_np, classes_np, valid_detections
 
-def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag=None):
+def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag=None, use_rtdetr=False):
     import time
     
     frame_count = 0
@@ -68,7 +84,7 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                 
                 # Process every other frame to reduce computational load
                 if frame_count % 2 == 0:
-                    detection_result = detect(frame, cam_name, cam_id, school, infer_weapon, output_dir)
+                    detection_result = detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, use_rtdetr=use_rtdetr)
                 else:
                     detection_result = None  # Skip detection for this frame
                 

@@ -124,7 +124,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
         except queue.Full:
             pass
 
-def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag=None, q_display=None):
+def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag=None, q_display=None, use_rtdetr=False):
     q_detect = queue.Queue(maxsize=64)
     q_record = queue.Queue(maxsize=64) 
     q_track = queue.Queue(maxsize=64)
@@ -139,7 +139,7 @@ def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, rei
     )
     t_detect = threading.Thread(
         target=detect_worker,
-        args=(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag),
+        args=(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag, use_rtdetr),
         name=f"{cam_name}-detector"
     )
     t_record = threading.Thread(
