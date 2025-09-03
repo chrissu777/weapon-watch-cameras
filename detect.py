@@ -1,20 +1,17 @@
+import time
+import io
+import cv2
 import queue
 import utils as utils
+
+from PIL import Image
 
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+from firebase_admin import storage
 
-def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=False, use_rtdetr=False):
-    #Firebase init
-    if not firebase_admin._apps:
-        cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
-    
-    db = firestore.client()
-    school_ref = db.collection('schools').document(school)
-    cam_ref = school_ref.collection("cameras").document(cam_id)
-
+def detect(frame, cam_name, infer_weapon, output_dir, grayscale=False, use_rtdetr=False):
     if use_rtdetr:
         # RT-DETR model inference (Ultralytics format)
         try:
@@ -55,18 +52,38 @@ def detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, grayscale=
         # Process and save detections
         pred_bbox = utils.process_detections(boxes_np, scores_np, classes_np, valid_detections, frame, cam_name, output_dir)
 
-    if pred_bbox is not None:
-        school_ref.update({'detected_cam_id': cam_id})
-        cam_ref.update({"bboxes": pred_bbox.flatten().tolist()})
-    
     # Return detection data for GUI annotation
-    return boxes_np, scores_np, classes_np, valid_detections
+    if valid_detections:
+        return boxes_np, scores_np, classes_np, valid_detections, pred_bbox
+    return None
 
-def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag=None, use_rtdetr=False):
-    import time
+def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, output_dir, shutdown_flag=None, use_rtdetr=False):    
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred, {
+            "storageBucket": "weapon-watch.firebasestorage.app"
+        })
+
+    db = firestore.client()
+    bucket = storage.bucket()
     
+    firebase_storage_path = "frame_for_verifier.jpg"
+    blob = bucket.blob(firebase_storage_path)
+
+    school_ref = (
+        db.collection("schools")
+        .document(school)
+    )
+
+    cam_ref = (
+        school_ref
+        .collection("cameras")
+        .document(cam_id)
+    )
+
+    buffer = io.BytesIO()
+
     frame_count = 0
-    
     try:
         while True:
             # Check for shutdown signal
@@ -84,29 +101,40 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                 
                 # Process every other frame to reduce computational load
                 if frame_count % 2 == 0:
-                    detection_result = detect(frame, cam_name, cam_id, school, infer_weapon, output_dir, use_rtdetr=use_rtdetr)
+                    detection_result = detect(frame, cam_name, infer_weapon, output_dir, use_rtdetr=use_rtdetr)
                 else:
                     detection_result = None  # Skip detection for this frame
                 
                 # Create annotated frame for GUI display
                 if q_display is not None and detection_result is not None:
-                    boxes_np, scores_np, classes_np, valid_detections = detection_result
+                    boxes_np, scores_np, classes_np, valid_detections, pred_bbox = detection_result
                     # Create annotated frame using existing utils function
                     annotated_frame, _ = utils.draw_bbox(frame.copy(), (boxes_np, scores_np, classes_np, valid_detections), show_label=True)
                     
+                    # Update all neccesary firebase variables                  
+                    image_pil = Image.fromarray(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))
+                    image_pil.save(buffer, format="JPEG")
+                    buffer.seek(0)
+                    
+                    blob.upload_from_file(buffer, content_type="image/jpeg")
+
+                    school_ref.update({'detected_cam_id': cam_id})
+                    cam_ref.update({'detected': True})
+                    cam_ref.update({"bboxes": pred_bbox.flatten().tolist()})
+
+                    # Attempt to pass frame to gui display
                     try:
                         q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
                     except queue.Full:
-                        pass  # Skip if GUI queue is full
+                        pass
+                
                 elif q_display is not None:
-                    # No detections, send original frame
                     try:
                         q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
                     except queue.Full:
-                        pass  # Skip if GUI queue is full
+                        pass
                     
             except queue.Empty:
-                # No frames available - check if we should timeout
                 break
             except Exception as e:
                 print(f"[ERROR] Detection worker error for {cam_name}: {e}")
