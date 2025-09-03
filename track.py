@@ -123,7 +123,7 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
                     embedding = get_embedding(frame, closest_person)
                     if embedding is not None:
                         shooter_id = match_embedding(embedding, embeddings, create_new=True)
-                        print(f"[{cam_id}] Shooter identified: ID {shooter_id}")
+                        # print(f"[{cam_id}] Shooter identified: ID {shooter_id}")
                         cam_ref.update({"shooter_detected": True})
                         
                         # Add to tracking results for GUI
@@ -144,7 +144,7 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
                         embedding = get_embedding(frame, (x1, y1, x2, y2))
                         if embedding is not None:
                             shooter_id = match_embedding(embedding, embeddings, create_new=False)
-                            print(f"[{cam_id}] Person {shooter_id} re-identified.")
+                            # print(f"[{cam_id}] Person {shooter_id} re-identified.")
                             cam_ref.update({"shooter_detected": True})
                             
                             # Add to tracking results for GUI
