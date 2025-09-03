@@ -40,25 +40,22 @@ class MultiCameraDisplay:
             if is_shooter:
                 color = (0, 0, 255)  # Red for shooter
                 label = f"Shooter {person_id}"
-            else:
-                color = (0, 255, 0)  # Green for regular person
-                label = f"Person {person_id}"
             
-            # Draw bounding box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            
-            # Draw label background
-            label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
-            cv2.rectangle(frame, (x1, y1 - label_size[1] - 10), (x1 + label_size[0], y1), color, -1)
-            
-            # Draw label text
-            cv2.putText(frame, label, (x1, y1 - 5), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-            
-            # Draw confidence score
-            conf_text = f"{confidence:.2f}"
-            cv2.putText(frame, conf_text, (x1, y2 + 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+                # Draw bounding box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                
+                # Draw label background
+                label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                cv2.rectangle(frame, (x1, y1 - label_size[1] - 10), (x1 + label_size[0], y1), color, -1)
+                
+                # Draw label text
+                cv2.putText(frame, label, (x1, y1 - 5), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                
+                # Draw confidence score
+                conf_text = f"{confidence:.2f}"
+                cv2.putText(frame, conf_text, (x1, y2 + 20), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
         
         return frame
     
@@ -94,10 +91,10 @@ class MultiCameraDisplay:
                                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                             
                             # Add tracking status
-                            if i in self.tracking_results and self.tracking_results[i]:
-                                track_count = len(self.tracking_results[i])
-                                cv2.putText(resized_frame, f"Tracking: {track_count}", (10, cell_h - 30), 
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
+                            # if i in self.tracking_results and self.tracking_results[i]:
+                            #     track_count = len(self.tracking_results[i])
+                            #     cv2.putText(resized_frame, f"Tracking: {track_count}", (10, cell_h - 30), 
+                            #             cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
                         else:
                             resized_frame = np.zeros((cell_h, cell_w, 3), dtype=np.uint8)
                             cv2.putText(resized_frame, f"{cam_name} (No Frame)", (10, cell_h - 10), 
