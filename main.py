@@ -13,7 +13,6 @@ from gui_display import gui_display_worker
 shutdown_flag = threading.Event()
 
 import torch
-# import torchreid
 from torchvision import transforms
 from ultralytics import YOLO
 from reid_model import SimpleReIDModel
@@ -51,9 +50,15 @@ if __name__ == '__main__':
     # Load shared detection model
     if USE_RTDETR:
         print("\n[INFO] Loading Roboflow RT-DETR detection model...")
-        from ultralytics import RTDETR
-        infer_weapon = RTDETR('models/roboflow_weights.pt')
-        print("[INFO] Roboflow RT-DETR model loaded and ready")
+        try:
+            infer_weapon = YOLO('models/roboflow_weights.pt')
+            print("[INFO] Roboflow RT-DETR model loaded and ready")
+        except Exception as e:
+            print(f"[ERROR] Failed to load RT-DETR model: {e}")
+            print("[INFO] Roboflow model format incompatible. Falling back to ONNX model...")
+            infer_weapon = load_onnx('models/detectionmodel.onnx')
+            print("[INFO] ONNX detection model loaded as fallback")
+            USE_RTDETR = False  # Update flag for downstream processing
     else:
         print("\n[INFO] Loading ONNX detection model...")
         infer_weapon = load_onnx('models/detectionmodel.onnx')    
