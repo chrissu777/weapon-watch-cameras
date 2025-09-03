@@ -9,6 +9,7 @@
             "video link": "rtsp://192.168.1.111:554/profile2/media.smp",
 
             "detected": false,
+            "shooter_detected": false,
             
             "latitude": 38.990388,
             "longitude": -76.938346
@@ -22,6 +23,7 @@
             "video link": "rtsp://192.168.1.131:554/profile2/media.smp",
 
             "detected": false,
+            "shooter_detected": false,
             
             "latitude": 38.990417,
             "longitude": -76.938283
@@ -35,6 +37,7 @@
             "video link": "rtsp://192.168.1.114:554/profile2/media.smp",
 
             "detected": false,
+            "shooter_detected": false,
             
             "latitude": 38.990414,
             "longitude": -76.938306
@@ -48,6 +51,7 @@
             "video link": "rtsp://192.168.1.151:554/profile2/media.smp",
 
             "detected": false,
+            "shooter_detected": false,
             
             "latitude": 38.990414,
             "longitude": -76.938335
@@ -61,6 +65,7 @@
             "video link": "rtsp://192.168.1.161:554/profile2/media.smp",
 
             "detected": false,
+            "shooter_detected": false,
             
             "latitude": 38.990402,
             "longitude": -76.938375
