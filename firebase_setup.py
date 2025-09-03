@@ -13,6 +13,13 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 cameras_col = db.collection('schools').document('UMD').collection('cameras')
 
+print("Deleting existing cameras...")
+docs = cameras_col.stream()
+for doc in docs:
+    doc.reference.delete()
+    print(f"Deleted camera {doc.id}")
+print("Existing cameras collection cleared\n")
+
 for i, cam in enumerate(cams):
     update_time, camera_ref = cameras_col.add(cam)
     print(f"Added camera {i+1} with id {camera_ref.id}")
