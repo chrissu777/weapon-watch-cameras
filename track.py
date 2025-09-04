@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import torch
 import queue
+import threading
 
 from PIL import Image
 from sklearn.metrics.pairwise import cosine_similarity
@@ -10,6 +11,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 ACTIVE = False 
+embeddings = []
+embeddings_lock = threading.Lock()
 
 def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform, q_display=None, cam_name=None):
     # Firebase init
@@ -46,29 +49,26 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
         max_sim = 0
         for entry in embeddings:
             sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
-            if sim > 0.7 and sim > max_sim:
+            if sim > 0.8 and sim > max_sim:
                 max_sim = sim
                 best_match = entry['id']
         if best_match:
             entry = next(e for e in embeddings if e['id'] == best_match)
             entry['embedding'] = ((np.array(entry['embedding']) * entry['count'] + embedding) / (entry['count'] + 1)).tolist()
             entry['count'] += 1
-            school_ref.update({
-                "embeddings": embeddings
-            })
-            return best_match
+            return best_match, max_sim
         elif create_new:
             if len(embeddings) > 1000:
                 embeddings.pop(0)
             new_id = len(embeddings) + 1
-            school_ref.update({
-                "embeddings": firestore.ArrayUnion([{
+            with embeddings_lock:
+                embeddings.append({
                     'embedding': embedding.tolist(),
                     'id': new_id,
                     'count': 1
-                }])
-            })
-            return new_id
+                })
+            return new_id, 1.0
+        return None, 0.0
 
     cam_ref = school_ref.collection("cameras").document(cam_id)
 
@@ -79,87 +79,213 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
             
             frame_count += 1
             
-            # Process every other frame to match detection rate
-            if frame_count % 2 != 0:
-                continue
-
-            doc = school_ref.get().to_dict()
-            detected_id = doc.get("detected_cam_id", "")
-
-            if detected_id == "":
-                continue
-            
-            embeddings = doc.get("embeddings", [])
-            embeddings = [dict(e) for e in embeddings]  # ensure mutable
-
-            cam_ref.update({"shooter_detected": False})
-
-            # Track all people in the frame for display
+            # Track all people in the frame for display (every frame for smooth GUI)
             person_boxes = yolo_model(frame, verbose=False)[0].boxes
             tracking_results = []  # Store tracking results for GUI
+            
+            # Store detection info for global coordination
+            detection_info = {
+                'cam_id': cam_id,
+                'similarity': 0.0,
+                'has_detection': False
+            }
+            
+            # Process every other frame for embedding matching to reduce computational load
+            if frame_count % 2 == 0:
+                doc = school_ref.get().to_dict()
+                detected_id = doc.get("detected_cam_id", "")
 
-            if detected_id == cam_id:
-                bbox = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
-                if sum(bbox) == 0:
-                    print(f"[{cam_id}] No bounding box found.")
-                    continue
+            # Only add tracking results for shooters (will be populated during embedding matching)
+            
+            # Do heavy embedding matching and Firebase coordination only every other frame
+            if frame_count % 2 == 0 and detected_id != "":
+                if detected_id == cam_id:
+                    bbox = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
+                    if sum(bbox) != 0:
+                        weapon_center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
+                        closest_person = None
+                        min_distance = float('inf')
 
-                weapon_center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-                closest_person = None
-                min_distance = float('inf')
+                        for person_box in person_boxes:
+                            conf = float(person_box.conf.item())
+                            cls = int(person_box.cls.item())
+                            if cls == 0 and conf > 0.3:
+                                x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())
+                                person_center = [(x1 + x2) / 2, (y1 + y2) / 2]
+                                distance = np.linalg.norm(np.array(weapon_center) - np.array(person_center))
+                                if distance < min_distance:
+                                    min_distance = distance
+                                    closest_person = (x1, y1, x2, y2, conf)
 
-                for person_box in person_boxes:
-                    conf = float(person_box.conf.item())
-                    cls = int(person_box.cls.item())
-                    if cls == 0 and conf > 0.3:
-                        x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())
-                        person_center = [(x1 + x2) / 2, (y1 + y2) / 2]
-                        distance = np.linalg.norm(np.array(weapon_center) - np.array(person_center))
-                        if distance < min_distance:
-                            min_distance = distance
-                            closest_person = (x1, y1, x2, y2)
-
-                if closest_person is not None:
-                    embedding = get_embedding(frame, closest_person)
-                    if embedding is not None:
-                        shooter_id = match_embedding(embedding, embeddings, create_new=True)
-                        # print(f"[{cam_id}] Shooter identified: ID {shooter_id}")
-                        cam_ref.update({"shooter_detected": True})
+                        if closest_person is not None:
+                            x1, y1, x2, y2, conf = closest_person
+                            embedding = get_embedding(frame, (x1, y1, x2, y2))
+                            if embedding is not None:
+                                shooter_id, similarity = match_embedding(embedding, embeddings, create_new=True)
+                                detection_info['similarity'] = similarity
+                                detection_info['has_detection'] = True
+                                
+                                # Add shooter to tracking results
+                                tracking_results.append({
+                                    'bbox': (x1, y1, x2, y2),
+                                    'person_id': shooter_id,
+                                    'is_shooter': True,
+                                    'confidence': conf
+                                })
+                else:
+                    if len(embeddings) > 0:
+                        best_match = None
+                        best_similarity = 0.0
+                        best_person = None
                         
-                        # Add to tracking results for GUI
-                        tracking_results.append({
-                            'bbox': closest_person,
-                            'person_id': shooter_id,
-                            'is_shooter': True,
-                            'confidence': conf
-                        })
-            else:
-                if len(embeddings) == 0:
-                    continue
-                for person_box in person_boxes:
-                    conf = float(person_box.conf.item())
-                    cls = int(person_box.cls.item())
-                    if cls == 0 and conf > 0.3:
-                        x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())
-                        embedding = get_embedding(frame, (x1, y1, x2, y2))
-                        if embedding is not None:
-                            shooter_id = match_embedding(embedding, embeddings, create_new=False)
-                            # print(f"[{cam_id}] Person {shooter_id} re-identified.")
-                            cam_ref.update({"shooter_detected": True})
+                        for person_box in person_boxes:
+                            conf = float(person_box.conf.item())
+                            cls = int(person_box.cls.item())
+                            if cls == 0 and conf > 0.3:
+                                x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())
+                                embedding = get_embedding(frame, (x1, y1, x2, y2))
+                                if embedding is not None:
+                                    result = match_embedding(embedding, embeddings, create_new=False)
+                                    if result[0] is not None:
+                                        shooter_id, similarity = result
+                                        if similarity > best_similarity:
+                                            best_similarity = similarity
+                                            best_match = shooter_id
+                                            best_person = (x1, y1, x2, y2, conf)
+                        
+                        if best_match is not None:
+                            detection_info['similarity'] = best_similarity
+                            detection_info['has_detection'] = True
                             
-                            # Add to tracking results for GUI
+                            # Add shooter to tracking results
+                            x1, y1, x2, y2, conf = best_person
                             tracking_results.append({
                                 'bbox': (x1, y1, x2, y2),
-                                'person_id': shooter_id,
-                                'is_shooter': False,
+                                'person_id': best_match,
+                                'is_shooter': False,  # Will be updated by global coordination
                                 'confidence': conf
                             })
-
-            # Send tracking results to GUI if queue is available
-            if q_display and tracking_results and cam_name:
+                
+                # Update camera's detection info in Firebase for global coordination
+                if detection_info['has_detection']:
+                    cam_ref.update({
+                        "detection_similarity": detection_info['similarity'],
+                        "detection_timestamp": firestore.SERVER_TIMESTAMP
+                    })
+                
+                # Global coordination: only allow best match to have shooter_detected = True
+                cameras_ref = school_ref.collection("cameras")
+                all_cameras = cameras_ref.stream()
+                
+                best_camera = None
+                best_similarity = 0.0
+                
+                for camera_doc in all_cameras:
+                    camera_data = camera_doc.to_dict()
+                    cam_similarity = camera_data.get("detection_similarity", 0.0)
+                    if cam_similarity > best_similarity:
+                        best_similarity = cam_similarity
+                        best_camera = camera_doc.id
+                
+                # Update shooter_detected for all cameras
+                all_cameras_again = cameras_ref.stream()
+                for camera_doc in all_cameras_again:
+                    is_best = camera_doc.id == best_camera and best_similarity > 0.0
+                    camera_doc.reference.update({"shooter_detected": is_best})
+                
+                # Update tracking results based on global coordination
+                current_cam_is_best = cam_id == best_camera and best_similarity > 0.0
+                for track in tracking_results:
+                    # Only show as shooter if this camera has the best match
+                    track['is_shooter'] = track['is_shooter'] and current_cam_is_best
+            
+            # Always check for shooter matches in current frame if we have embeddings
+            # This ensures shooter tracking continues even after weapon detection stops
+            with embeddings_lock:
+                if len(tracking_results) == 0 and len(embeddings) > 0:
+                    best_match = None
+                    best_similarity = 0.0
+                    best_person = None
+                    
+                    for person_box in person_boxes:
+                        conf = float(person_box.conf.item())
+                        cls = int(person_box.cls.item())
+                        if cls == 0 and conf > 0.3:
+                            x1, y1, x2, y2 = map(int, person_box.xyxy[0].cpu().numpy())
+                            embedding = get_embedding(frame, (x1, y1, x2, y2))
+                            if embedding is not None:
+                                result = match_embedding(embedding, embeddings, create_new=False)
+                                if result[0] is not None:
+                                    shooter_id, similarity = result
+                                    if similarity > best_similarity:
+                                        best_similarity = similarity
+                                        best_match = shooter_id
+                                        best_person = (x1, y1, x2, y2, conf)
+                    
+                    if best_match is not None:
+                        x1, y1, x2, y2, conf = best_person
+                        
+                        # Determine if this should show as shooter based on best similarity across all cameras
+                        # For now, always show as shooter if we found a match - global coordination will handle it
+                        is_shooter = True
+                        tracking_results.append({
+                            'bbox': (x1, y1, x2, y2),
+                            'person_id': best_match,
+                            'is_shooter': is_shooter,
+                            'confidence': conf
+                        })
+            
+            # Draw both weapon detection boxes and tracking boxes on the current frame
+            if q_display and cam_name:
                 try:
+                    # Create annotated frame
+                    annotated_frame = frame.copy()
+                    
+                    # Draw weapon detection box if this camera detected a weapon
+                    if frame_count % 2 == 0 and detected_id != "":
+                        if detected_id == cam_id:
+                            bbox = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
+                            if sum(bbox) != 0:
+                                # Draw weapon detection box in blue
+                                x1, y1, x2, y2 = map(int, bbox[:4])
+                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Blue for weapon
+                                cv2.putText(annotated_frame, "Weapon Detected", (x1, y1-10), 
+                                          cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                    
+                    # Draw tracking boxes only for shooters
+                    shooter_count = 0
+                    for track in tracking_results:
+                        if track['person_id'] is not None and track.get('is_shooter', False):  # Only draw shooters
+                            shooter_count += 1
+                            bbox = track['bbox']
+                            person_id = track['person_id']
+                            confidence = track.get('confidence', 0.0)
+                            
+                            x1, y1, x2, y2 = bbox
+                            
+                            # Red for shooter
+                            color = (0, 0, 255)
+                            label = f"Shooter {person_id}"
+                            
+                            # Draw bounding box
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                            
+                            # Draw label background
+                            label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                            cv2.rectangle(annotated_frame, (x1, y1 - label_size[1] - 10), (x1 + label_size[0], y1), color, -1)
+                            
+                            # Draw label text
+                            cv2.putText(annotated_frame, label, (x1, y1 - 5), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                            
+                            # Draw confidence score
+                            conf_text = f"{confidence:.2f}"
+                            cv2.putText(annotated_frame, conf_text, (x1, y2 + 20), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+                    
+                    # Send the annotated frame with both weapon and tracking boxes to GUI
                     gui_cam_id = int(cam_name[-1])  # Extract number from "Camera X"
-                    q_display.put(('tracking', gui_cam_id, tracking_results), timeout=0.01)
+                    q_display.put((gui_cam_id, cam_name, annotated_frame), timeout=0.01)
                 except queue.Full:
                     pass  # Skip if queue is full
 

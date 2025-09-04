@@ -121,18 +121,19 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                     school_ref.update({'detected_cam_id': cam_id})
                     cam_ref.update({'detected': True})
                     cam_ref.update({"bboxes": pred_bbox.flatten().tolist()})
-
+                elif detection_result is None:
+                    cam_ref.update({"bboxes": []})
                     # Attempt to pass frame to gui display
-                    try:
-                        q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
-                    except queue.Full:
-                        pass
+                    # try:
+                    #     q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
+                    # except queue.Full:
+                    #     pass
                 
-                elif q_display is not None:
-                    try:
-                        q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
-                    except queue.Full:
-                        pass
+                # elif q_display is not None:
+                #     try:
+                #         q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
+                #     except queue.Full:
+                #         pass
                     
             except queue.Empty:
                 break

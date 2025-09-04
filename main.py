@@ -29,7 +29,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     
     # Model configuration
-    USE_RTDETR = True  # Set to False to use ONNX model
+    USE_RTDETR = False  # Set to False to use ONNX model
     
     print(f"[INFO] CUDA available: {torch.cuda.is_available()}")
     print(f"[INFO] Model type: {'RT-DETR' if USE_RTDETR else 'ONNX'}")
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     if USE_RTDETR:
         print("\n[INFO] Loading Roboflow RT-DETR detection model...")
         try:
-            infer_weapon = YOLO('models/roboflow_weights.pt')
+            infer_weapon = YOLO('models/weights.pt')
             print("[INFO] Roboflow RT-DETR model loaded and ready")
         except Exception as e:
             print(f"[ERROR] Failed to load RT-DETR model: {e}")
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     # Load shared ReID model
     print("\n[INFO] Loading ReID model...")
-    reid_model = SimpleReIDModel(feature_dim=512)
+    reid_model = SimpleReIDModel()
     device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     reid_model.to(device).eval()
     print(f"[INFO] ReID model loaded on {device}\n")

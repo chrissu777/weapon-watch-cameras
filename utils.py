@@ -95,7 +95,7 @@ def extract_rtdetr_predictions(results):
         boxes = result.boxes
         
         if boxes is None or len(boxes) == 0:
-            print("[INFO] No boxes detected by RT-DETR")
+            # print("[INFO] No boxes detected by RT-DETR")
             return np.array([]).reshape(0, 4), np.array([]), np.array([]), 0
         
         # Extract data (already in correct format from Ultralytics)
