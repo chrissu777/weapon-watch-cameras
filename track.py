@@ -235,57 +235,11 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
                             'confidence': conf
                         })
             
-            # Draw both weapon detection boxes and tracking boxes on the current frame
-            if q_display and cam_name:
+            # Send only tracking data to GUI, no frame annotation here
+            if q_display and cam_name and len(tracking_results) > 0:
                 try:
-                    # Create annotated frame
-                    annotated_frame = frame.copy()
-                    
-                    # Draw weapon detection box if this camera detected a weapon
-                    if frame_count % 2 == 0 and detected_id != "":
-                        if detected_id == cam_id:
-                            bbox = cam_ref.get().to_dict().get("bboxes", [0, 0, 0, 0])
-                            if sum(bbox) != 0:
-                                # Draw weapon detection box in blue
-                                x1, y1, x2, y2 = map(int, bbox[:4])
-                                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Blue for weapon
-                                cv2.putText(annotated_frame, "Weapon Detected", (x1, y1-10), 
-                                          cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-                    
-                    # Draw tracking boxes only for shooters
-                    shooter_count = 0
-                    for track in tracking_results:
-                        if track['person_id'] is not None and track.get('is_shooter', False):  # Only draw shooters
-                            shooter_count += 1
-                            bbox = track['bbox']
-                            person_id = track['person_id']
-                            confidence = track.get('confidence', 0.0)
-                            
-                            x1, y1, x2, y2 = bbox
-                            
-                            # Red for shooter
-                            color = (0, 0, 255)
-                            label = f"Shooter {person_id}"
-                            
-                            # Draw bounding box
-                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                            
-                            # Draw label background
-                            label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
-                            cv2.rectangle(annotated_frame, (x1, y1 - label_size[1] - 10), (x1 + label_size[0], y1), color, -1)
-                            
-                            # Draw label text
-                            cv2.putText(annotated_frame, label, (x1, y1 - 5), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                            
-                            # Draw confidence score
-                            conf_text = f"{confidence:.2f}"
-                            cv2.putText(annotated_frame, conf_text, (x1, y2 + 20), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
-                    
-                    # Send the annotated frame with both weapon and tracking boxes to GUI
-                    gui_cam_id = int(cam_name[-1])  # Extract number from "Camera X"
-                    q_display.put((gui_cam_id, cam_name, annotated_frame), timeout=0.01)
+                    gui_cam_id = int(cam_name[-1])  # Extract number from "Camera X" 
+                    q_display.put(('tracking', gui_cam_id, tracking_results), timeout=0.001)
                 except queue.Full:
                     pass  # Skip if queue is full
 
