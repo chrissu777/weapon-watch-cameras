@@ -51,7 +51,7 @@ if __name__ == '__main__':
     if USE_RTDETR:
         print("\n[INFO] Loading Roboflow RT-DETR detection model...")
         try:
-            infer_weapon = YOLO('models/weights.pt')
+            infer_weapon = YOLO('models/final_weights.pt')
             print("[INFO] Roboflow RT-DETR model loaded")
         except Exception as e:
             print(f"[ERROR] Failed to load RT-DETR model: {e}")
@@ -143,13 +143,35 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print("\n[INFO] Keyboard interrupt received")
             shutdown_flag.set()
-    
+
     print("\n[INFO] Waiting for threads to complete...")
     for t in threads:
         if t.is_alive():
             t.join(timeout=3.0)  # Wait max 3 seconds per thread
     
-    print("[INFO] Program terminated successfully")
+    print("\n[INFO] Resetting all firebase variables")
+    school_ref = (
+        db.collection("schools")
+        .document('UMD')
+    )
+    school_ref.update({
+        'detected_cam_id': '',
+        'Active Event': False
+    })
+
+    for cam in cams:
+        cam_ref = (
+            school_ref
+            .collection("cameras")
+            .document(cam.id)
+        )
+        cam_ref.update({
+            'detected': False,
+            'shooter_detected': False,
+            'bboxes': None
+        })
+
+    print("\n[INFO] Program terminated successfully")
     
     # Force exit to avoid hanging on C++ cleanup issues
     print("[INFO] Forcing program exit...")
