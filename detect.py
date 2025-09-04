@@ -67,7 +67,7 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
     db = firestore.client()
     bucket = storage.bucket()
     
-    firebase_storage_path = "frame_for_verifier.jpg"
+    firebase_storage_path = f"frame_for_verifier_{cam_id}.jpg"
     blob = bucket.blob(firebase_storage_path)
 
     school_ref = (
@@ -118,9 +118,11 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                     
                     blob.upload_from_file(buffer, content_type="image/jpeg")
 
-                    school_ref.update({'detected_cam_id': cam_id})
                     cam_ref.update({'detected': True})
                     cam_ref.update({"bboxes": pred_bbox.flatten().tolist()})
+
+                    school_ref.update({'detected_cam_id': cam_id})
+                    school_ref.update({'firebase_storage_path': f"frame_for_verifier_{cam_id}.jpg"})
                 elif detection_result is None:
                     cam_ref.update({"bboxes": []})
                     # Attempt to pass frame to gui display
