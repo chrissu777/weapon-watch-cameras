@@ -95,6 +95,7 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
                 q_track.put(frame, timeout=0.01)
             except queue.Full:
                 # Drop frames when tracking can't keep up - tracking is less critical than detection
+                print(f'[WARNING] Tracking queue full for {cam_name}')
                 try:
                     q_track.get_nowait()  # Remove oldest frame
                     q_track.put(frame, timeout=0.01)  # Add current frame
@@ -125,9 +126,9 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
             pass
 
 def threaded_process(rtsp_url, cam_id, cam_name, school, infer_weapon, yolo, reid_model, reid_transform, output_dir, shutdown_flag=None, q_display=None, use_rtdetr=False):
-    q_detect = queue.Queue(maxsize=64)
-    q_record = queue.Queue(maxsize=64) 
-    q_track = queue.Queue(maxsize=64)
+    q_detect = queue.Queue(maxsize=64)   # Reduce - detection is CPU intensive
+    q_record = queue.Queue(maxsize=128)  # Increase - recording is fast
+    q_track = queue.Queue(maxsize=64)     # Reduce - tracking is most expensive
     
     if q_display is None:
         q_display = queue.Queue(maxsize=32)
