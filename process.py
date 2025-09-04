@@ -94,13 +94,8 @@ def frame_reader(rtsp_url, cam_name, q_detect, q_record, q_track, q_display, sch
             try:
                 q_track.put(frame, timeout=0.01)
             except queue.Full:
-                # Drop frames when tracking can't keep up - tracking is less critical than detection
                 print(f'[WARNING] Tracking queue full for {cam_name}')
-                try:
-                    q_track.get_nowait()  # Remove oldest frame
-                    q_track.put(frame, timeout=0.01)  # Add current frame
-                except queue.Empty:
-                    pass  # Queue was somehow empty, skip this frame
+                pass
             
             time.sleep(0.01)
             
