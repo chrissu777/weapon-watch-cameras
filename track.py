@@ -49,7 +49,7 @@ def track_worker(q_track, cam_id, school, yolo_model, reid_model, reid_transform
         max_sim = 0
         for entry in embeddings:
             sim = cosine_similarity([embedding], [entry['embedding']])[0][0]
-            if sim > 0.8 and sim > max_sim:
+            if sim > 0.95 and sim > max_sim:
                 max_sim = sim
                 best_match = entry['id']
         if best_match:
