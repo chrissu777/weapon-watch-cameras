@@ -52,7 +52,7 @@ if __name__ == '__main__':
         print("\n[INFO] Loading Roboflow RT-DETR detection model...")
         try:
             infer_weapon = YOLO('models/weights.pt')
-            print("[INFO] Roboflow RT-DETR model loaded and ready")
+            print("[INFO] Roboflow RT-DETR model loaded")
         except Exception as e:
             print(f"[ERROR] Failed to load RT-DETR model: {e}")
             print("[INFO] Roboflow model format incompatible. Falling back to ONNX model...")
@@ -62,20 +62,20 @@ if __name__ == '__main__':
     else:
         print("\n[INFO] Loading ONNX detection model...")
         infer_weapon = load_onnx('models/detectionmodel.onnx')    
-        print("[INFO] ONNX detection model loaded and ready")
+        print("[INFO] ONNX detection model loaded")
 
     # Load shared YOLO model
     print("\n[INFO] Loading YOLO model...")
     yolo = YOLO("yolov8n.pt")
     yolo.fuse()
-    print("[INFO] YOLO model loaded.")
+    print("[INFO] YOLO model loaded")
 
     # Load shared ReID model
     print("\n[INFO] Loading ReID model...")
     reid_model = SimpleReIDModel()
     device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     reid_model.to(device).eval()
-    print(f"[INFO] ReID model loaded on {device}\n")
+    print(f"[INFO] ReID model loaded on {device}")
 
     reid_transform = transforms.Compose([
         transforms.Resize((256, 128)),
@@ -87,8 +87,8 @@ if __name__ == '__main__':
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
-    print(f"[INFO] Output directory: {output_dir}")
-        
+    print(f"\n[INFO] Output directory: {output_dir}")
+
     print("\n[INFO] Starting video processing...")
     print("[INFO] Press Ctrl+C to stop\n")
     
