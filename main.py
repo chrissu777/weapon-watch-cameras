@@ -156,10 +156,13 @@ if __name__ == '__main__':
     )
     school_ref.update({
         'detected_cam_id': '',
-        'Active Event': False
+        'Active Event': False,
+        'embeddings': []
     })
 
-    for cam in cams:
+    # Get fresh camera list since cams iterator was already consumed
+    cams_reset = db.collection('schools').document('UMD').collection('cameras').stream()
+    for cam in cams_reset:
         cam_ref = (
             school_ref
             .collection("cameras")
@@ -168,7 +171,7 @@ if __name__ == '__main__':
         cam_ref.update({
             'detected': False,
             'shooter_detected': False,
-            'bboxes': None
+            'bboxes': []
         })
 
     print("\n[INFO] Program terminated successfully")
