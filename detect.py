@@ -123,19 +123,18 @@ def detect_worker(q_detect, q_display, cam_id, cam_name, school, infer_weapon, o
                     batch.update(cam_ref, {'detected': True, 'bboxes': pred_bbox.flatten().tolist()})
                     batch.update(school_ref, {'detected_cam_id': cam_id, 'firebase_storage_path': f"frame_for_verifier_{cam_id}.jpg"})
                     batch.commit()
-                elif detection_result is None:
-                    cam_ref.update({"bboxes": []})
+                    
                     # Attempt to pass frame to gui display
-                    # try:
-                    #     q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
-                    # except queue.Full:
-                    #     pass
+                    try:
+                        q_display.put((cam_id, cam_name, annotated_frame), timeout=0.05)
+                    except queue.Full:
+                        pass
                 
-                # elif q_display is not None:
-                #     try:
-                #         q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
-                #     except queue.Full:
-                #         pass
+                elif q_display is not None:
+                    try:
+                        q_display.put((cam_id, cam_name, frame.copy()), timeout=0.05)
+                    except queue.Full:
+                        pass
                     
             except queue.Empty:
                 break
